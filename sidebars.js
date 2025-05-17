@@ -28,9 +28,33 @@ const sidebars = {
         'auth/ldap-authentication',
         'auth/postgres-auth-integration',
         'auth/authentication-protocols-comparison',
-        'auth/implementation-tutorial'
+        'auth/implementation-tutorial',
+        'auth/oauth2-guide'
       ],
     },
+    {
+      type: 'category',
+      label: 'Programming Languages',
+      items: [
+        {
+          type: 'category',
+          label: 'Python',
+          items: [
+            'programming/python/name-main-explanation',
+            'programming/python/monitoring-api-changes'
+          ],
+        },
+      ],
+    },
+    {
+      type: 'category',
+      label: 'Linux',
+      items: [
+        'linux/services-overview',
+        'linux/networking-guide'
+      ],
+    },
+
     /* other categories */
   ],
 };

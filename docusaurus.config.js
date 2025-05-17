@@ -108,27 +108,6 @@ const config = {
           },
           {
             type: 'dropdown',
-            label: 'Topics',
-            position: 'left',
-            items: [
-              {
-                type: 'doc',
-                label: 'Authentication',
-                docId: 'auth/auth-index',
-              },
-              {
-                label: 'Databases',
-                to: '#databases',
-              },
-              {
-                label: 'Cloud Technologies',
-                to: '#cloud',
-              },
-              // More categories can be added here as needed
-            ],
-          },
-          {
-            type: 'dropdown',
             label: 'Resources',
             position: 'left',
             items: [
