@@ -13,9 +13,23 @@ const config = {
   markdown: {
     mermaid: true,
   },
-  themes: ['@docusaurus/theme-mermaid'],
-  title: 'My Site',
-  tagline: 'Dinosaurs are cool',
+  themes: [
+    '@docusaurus/theme-mermaid',
+    [
+      '@easyops-cn/docusaurus-search-local',
+      {
+        hashed: true,
+        language: ["en"],
+        highlightSearchTermsOnTargetPage: true,
+        explicitSearchResultPath: true,
+        indexDocs: true,
+        indexBlog: false,
+        indexPages: false,
+      },
+    ],
+  ],
+  title: 'TechDocs',
+  tagline: 'Comprehensive Technical Documentation Resource',
   favicon: 'img/favicon.ico',
 
   // Set the production url of your site here
@@ -80,9 +94,9 @@ const config = {
       // Replace with your project's social card
       image: 'img/docusaurus-social-card.jpg',
       navbar: {
-        title: 'My Site',
+        title: 'TechDocs',
         logo: {
-          alt: 'My Site Logo',
+          alt: 'TechDocs Logo',
           src: 'img/logo.svg',
         },
         items: [
@@ -90,13 +104,43 @@ const config = {
             type: 'docSidebar',
             sidebarId: 'docs',
             position: 'left',
-            label: 'Documentation',
+            label: 'All Docs',
           },
-          {to: '/blog', label: 'Blog', position: 'left'},
           {
-            href: 'https://github.com/facebook/docusaurus',
-            label: 'GitHub',
-            position: 'right',
+            type: 'dropdown',
+            label: 'Topics',
+            position: 'left',
+            items: [
+              {
+                type: 'doc',
+                label: 'Authentication',
+                docId: 'auth/auth-index',
+              },
+              {
+                label: 'Databases',
+                to: '#databases',
+              },
+              {
+                label: 'Cloud Technologies',
+                to: '#cloud',
+              },
+              // More categories can be added here as needed
+            ],
+          },
+          {
+            type: 'dropdown',
+            label: 'Resources',
+            position: 'left',
+            items: [
+              {
+                to: '/blog',
+                label: 'Blog',
+              },
+              {
+                label: 'GitHub',
+                href: 'https://github.com/facebook/docusaurus',
+              },
+            ],
           },
         ],
       },
