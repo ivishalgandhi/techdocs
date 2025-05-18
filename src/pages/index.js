@@ -14,6 +14,13 @@ function HomepageHeader() {
           {siteConfig.title}
         </Heading>
         <p className="hero__subtitle">{siteConfig.tagline}</p>
+        <div className={styles.buttons}>
+          <Link
+            className="button button--secondary button--lg"
+            to="/docs">
+            Browse Documentation
+          </Link>
+        </div>
       </div>
     </header>
   );
@@ -177,7 +184,30 @@ export default function Home() {
       <HomepageHeader />
       
       <main>
-        {/* All category sections have been removed for a cleaner homepage */}
+        <div className="container margin-top--xl margin-bottom--lg">
+          <div className="row">
+            <div className="col col--8 col--offset-2">
+              <Heading as="h2" className="margin-bottom--md text--center">
+                Welcome to My Technical Learning Log
+              </Heading>
+              <p className="margin-bottom--lg">
+                This is my daily technical learning log that I've open-sourced and shared with the world. 
+                Here, I document various technical concepts, tools, and best practices I've learned along my journey.
+                Feel free to explore the documentation, contribute, or use it for your own learning!
+              </p>
+            </div>
+          </div>
+        </div>
+        
+        <TopicCategory
+          title="Authentication & Identity"
+          description="Explore modern authentication protocols and identity management solutions."
+          id="auth"
+        >
+          <div className="col col--12">
+            <TopicGrid topics={authTopics} />
+          </div>
+        </TopicCategory>
       </main>
     </Layout>
   );

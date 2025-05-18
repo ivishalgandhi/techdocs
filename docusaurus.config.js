@@ -116,12 +116,12 @@ const config = {
             position: 'left',
             items: [
               {
-                to: '/blog',
+                href: 'https://vishalgandhi.in',
                 label: 'Blog',
               },
               {
                 label: 'GitHub',
-                href: 'https://github.com/facebook/docusaurus',
+                href: 'https://github.com/ivishalgandhi/techdocs',
               },
             ],
           },
