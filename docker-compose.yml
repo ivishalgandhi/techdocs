@@ -1,0 +1,11 @@
+services:
+  techdocs:
+    container_name: techdocs
+    build: .
+    # Using host network mode
+    network_mode: "host"
+    volumes:
+      - ./build:/app/build
+    restart: unless-stopped
+    # Add explicit hostname
+    hostname: techdocs

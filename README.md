@@ -55,6 +55,12 @@ Or with yarn:
 yarn start
 ```
 
+To make your site accessible from other devices on your network, use:
+
+```bash
+npm start -- --host 0.0.0.0
+```
+
 This command starts a local development server and opens up a browser window. Most changes are reflected live without having to restart the server.
 
 ### 4. Build
@@ -87,6 +93,18 @@ Or with yarn:
 yarn serve
 ```
 
+To make your production build accessible from other devices on your network:
+
+```bash
+npm run serve -- --host 0.0.0.0
+```
+
+You can also specify a custom port if needed:
+
+```bash
+npm run serve -- --host 0.0.0.0 --port 8000
+```
+
 ### 6. Deployment
 
 Using SSH:
@@ -102,6 +120,47 @@ GIT_USER=<Your GitHub username> npm run deploy
 ```
 
 If you are using GitHub pages for hosting, this command is a convenient way to build the website and push to the `gh-pages` branch.
+
+## Docker Deployment
+
+You can also run the Docusaurus site as a Docker container while using the build directory from your local filesystem:
+
+### 1. Build your site first
+
+```bash
+npm run build
+```
+
+### 2. Using Docker Directly
+
+Build and run the Docker container:
+
+```bash
+# Build the Docker image
+docker build -t techdocs .
+
+# Run the container with a volume mount to your local build directory
+# The 0.0.0.0 binds to all network interfaces, making the site accessible from other devices
+docker run -p 0.0.0.0:3000:3000 -v "$(pwd)/build:/app/build" techdocs
+```
+
+### 3. Using Docker Compose (Recommended)
+
+```bash
+# Build the container (add --no-cache to rebuild from scratch)
+docker compose build
+
+# Start the container
+docker compose up -d
+
+# View logs
+docker container logs techdocs-techdocs-1
+
+# Stop the container
+docker compose down
+```
+
+The site will be available at http://localhost:3000 and also accessible from other devices on your network at http://YOUR_IP:3000.
 
 ## Troubleshooting
 

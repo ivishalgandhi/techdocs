@@ -34,3 +34,8 @@ lerna-debug.log*
 
 # Local Netlify folder
 .netlify
+
+# Docker
+.dockerignore
+.docker-data
+docker-compose.override.yml
