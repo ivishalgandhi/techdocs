@@ -4,13 +4,50 @@
 
 OpenID Connect (OIDC) is an identity layer built on top of the OAuth 2.0 protocol. While OAuth 2.0 is designed for authorization (granting access to resources), OIDC extends it to provide authentication (verifying user identity). OIDC was developed to address the need for a standardized, secure way to verify user identities across different applications and domains.
 
+Understanding the relationship between OAuth 2.0 and OIDC is crucial. Think of it this way:
+
+* While OAuth is like giving a Client a "key" for specific permissions, **OIDC is like giving the Client a "badge"**
+* This badge provides permissions (like the OAuth Access Token) **and also basic information about who you are**
+* **OIDC enables a Client application to establish a login session (authentication)** and get identity information about the user
+* When an Authorization Server supports OIDC, it is sometimes referred to as an **Identity Provider**, because it provides identity information back to the Client
+* OIDC enables scenarios like **Single Sign-On (SSO)**, allowing one login to work across multiple applications
+
+## The Problem OAuth and OIDC Solve
+
+In the past, when one service needed to access your data or perform actions on your behalf in another service, the common (and insecure) practice was to simply **give the first service your username and password** for the second service. This allowed the service to log in as you and access your account.
+
+However, this approach is highly risky:
+* There's **no guarantee** the organization receiving your credentials will keep them safe
+* There's **no guarantee** they won't access more personal information than necessary
+
+Sharing your username and password directly with another service should **never be required**.
+
+## OAuth 2.0: Delegated Authorization
+
+OAuth 2.0 is a **security standard** that allows you to **grant one application permission to access your data or perform actions on your behalf in another application**. Instead of sharing your password, you essentially give the application a **"key"** with **specific, limited permissions**. This process of granting permission is often called **authorization** or **delegated authorization**. A significant advantage is that you can **revoke this "key"** whenever you want.
+
+### Example: Terrible Pun of the Day
+
+Let's use the example of a website called "Terrible Pun of the Day". Suppose you create an account and want it to send terrible pun jokes via email to everyone in your contacts list. Manually writing emails to everyone would be a lot of work.
+
+"Terrible Pun of the Day" has a feature to invite friends, which requires access to your email contacts. Instead of asking for your email password, it initiates an **OAuth flow**:
+
+1. You choose your email provider on the "Terrible Pun of the Day" site and click it
+2. You are **redirected to your email service** (the Authorization Server)
+3. Your email service checks if you are logged in and prompts you to log in if necessary
+4. After you are logged in, your email service asks you something like, "Do you want to give Terrible Pun of the Day access to your contacts?" This step is **Consent**
+5. If you click **"allow"** (granting consent), you are **redirected back to the "Terrible Pun of the Day" site**
+6. The application can now read your contacts (and only your contacts, based on the granted permission)
+
+This process is part of an OAuth flow, specifically the **Authorization Code Flow**, which is the most common OAuth 2.0 flow.
+
 ## Core Components of OIDC
 
 ### 1. Participants in the OIDC Flow
 
-- **End User**: The person who wants to authenticate
-- **Relying Party (RP)**: The application that needs to verify the user's identity
-- **OpenID Provider (OP)**: The identity provider that authenticates the user and provides claims
+- **End User** (Resource Owner): The person who wants to authenticate. You own your identity, data, and account actions.
+- **Relying Party (RP)** (Client): The application that needs to verify the user's identity and wants to access your data or perform actions on your behalf.
+- **OpenID Provider (OP)** (Authorization Server): The identity provider that authenticates the user and provides claims. This is the service where the Resource Owner already has an account.
 
 ### 2. Key Endpoints
 
@@ -71,6 +108,31 @@ Enhanced security for public clients like mobile apps and SPAs:
 4. OpenID Provider redirects back with an authorization code
 5. Application exchanges the code and code verifier for tokens
 6. Application validates the ID token and creates a session
+
+## The OIDC Flow - Building on OAuth 2.0
+
+OIDC leverages the OAuth 2.0 authorization framework and adds standardized layers for authentication and obtaining identity information. The key difference is in what is requested and what is received:
+
+1. **Initiate Request with `openid` Scope:** In the initial request from the Client to the Authorization Server, a specific **Scope of `openid` is included**. This signal tells the Authorization Server that this will be an OpenID Connect exchange.
+
+2. **Authorization Code Grant:** The Authorization Server proceeds through the same steps as the OAuth flow, including authentication, consent, and **issues an Authorization Code** back to the Client via the Resource Owner's browser.
+
+3. **Token Exchange - Access Token + ID Token:** When the Client contacts the Authorization Server directly to exchange the Authorization Code for tokens, it receives **both an Access Token (for authorization) and an ID Token (for authentication/identity)**.
+
+4. **Understanding the Tokens:**
+   * The **Access Token** is still a value the Client doesn't necessarily understand; it's for interacting with the Resource Server.
+   * The **ID Token** is different. It is a specially formatted string called a **JSON Web Token (JWT)**.
+
+5. **Extracting Identity Information from JWT:** A JWT may look like gibberish, but the **Client can extract embedded information from it**. This embedded information is called **Claims**. Claims can include details like your ID, name, when you logged in, and the token's expiration time. JWTs also contain information that allows the Client to detect if the token has been tampered with.
+
+### OIDC Analogy: ATM Card
+
+The relationship between OIDC and OAuth can be thought of like using an ATM:
+* The **ATM machine is the Client**. Its job is to access data (like balance) and perform transactions (withdraw, deposit).
+* Your **bank card is the token** issued by the bank.
+* The card gives the ATM access to your account details and the ability to perform transactions (**authorization**).
+* But the card also has **basic information about your identity** (like your name) and authentication details (expiry, issuer).
+* The ATM **relies on the underlying bank infrastructure**, just as **OIDC relies on and sits on top of the underlying OAuth framework**. OIDC cannot work without the underlying OAuth.
 
 ## ID Tokens in Detail
 

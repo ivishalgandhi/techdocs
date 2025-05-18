@@ -8,14 +8,39 @@ description: "A comprehensive guide to OAuth 2.0, the industry-standard protocol
 
 OAuth 2.0 is the industry-standard protocol for authorization. Unlike authentication protocols that verify identity, OAuth 2.0 focuses on delegation of access rights, allowing third-party applications to access resources on behalf of users without exposing credentials.
 
+## The Problem with Sharing Credentials
+
+In the past, when one service needed to access your data or perform actions on your behalf in another service, the common (and insecure) practice was to simply **give the first service your username and password** for the second service. This allowed the service to log in as you and access your account.
+
+However, this approach is highly risky:
+*   There's **no guarantee** the organization receiving your credentials will keep them safe.
+*   There's **no guarantee** they won't access more personal information than necessary.
+
+Sharing your username and password directly with another service should **never be required**.
+
+## OAuth 2.0: Delegated Authorization
+
+Fortunately, we now have agreed-upon standards to securely allow one service to access data from another. OAuth 2.0 is a **security standard** that allows you to **grant one application permission to access your data or perform actions on your behalf in another application**. Instead of sharing your password, you essentially give the application a **"key"** with **specific, limited permissions**. This process of granting permission is often called **authorization** or **delegated authorization**. A significant advantage is that you can **revoke this "key"** whenever you want.
+
 ## Core Concepts
 
 At its foundation, OAuth 2.0 involves several key actors:
 
-- **Resource Owner**: The entity (typically the end-user) that can grant access to a protected resource
-- **Client**: The application requesting access to protected resources
-- **Authorization Server**: The server that authenticates the Resource Owner and issues access tokens
-- **Resource Server**: The server hosting the protected resources, capable of accepting and responding to requests using access tokens
+- **Resource Owner**: The entity (typically the end-user) that can grant access to a protected resource. That's **you**. You own your identity, data, and account actions.
+- **Client**: The application requesting access to protected resources. This is the application that wants to access your data or perform actions on your behalf.
+- **Authorization Server**: The server that authenticates the Resource Owner and issues access tokens. This is the application that knows the Resource Owner and where the Resource Owner already has an account. This server is responsible for authenticating the Resource Owner and granting permission.
+- **Resource Server**: The server hosting the protected resources, capable of accepting and responding to requests using access tokens. This is the API or service the Client wants to use on your behalf. The Authorization Server and Resource Server can be the same server or different servers/organizations.
+
+Additional important terminology includes:
+
+- **Redirect URI (or Callback URL)**: The specific URL on the Client application where the Authorization Server will redirect the Resource Owner's browser after they grant or deny permission.
+- **Response Type**: Indicates the type of information the Client expects back from the Authorization Server. The most common type is **"code"**, signifying the client expects an Authorization Code.
+- **Scope**: These are the **granular permissions** the Client requests, such as reading data or performing specific actions. The Authorization Server uses these to ask the Resource Owner for Consent.
+- **Consent**: The process where the Authorization Server asks the Resource Owner if they want to grant the Client the requested Scopes (permissions).
+- **Client ID**: An ID used to identify the Client application with the Authorization Server.
+- **Client Secret**: A **secret password** that only the Client and the Authorization Server know. This is used for secure, private communication between them behind the scenes. It helps the Authorization Server verify the identity of the Client. Sometimes called the App ID and App Secret.
+- **Authorization Code**: A **short-lived, temporary code** that the Authorization Server sends back to the Client via the Resource Owner's browser.
+- **Access Token**: A **"key"** issued by the Authorization Server to the Client. As far as the Client is concerned, it's just a string of gibberish; the Client doesn't understand its contents. The Resource Server verifies this token.
 
 ```mermaid
 sequenceDiagram
@@ -57,6 +82,28 @@ flowchart LR
 - After authentication, authorization server redirects back to client with an authorization code
 - Client exchanges code for an access token using its client secret
 - Client uses the access token to access resources
+
+### The OAuth 2.0 Authorization Code Flow Example
+
+Let's use the example of a website called "Terrible Pun of the Day" that wants to access your email contacts. Here's how the authorization code flow works in detail:
+
+1. **Initiate Request:** You (Resource Owner) want "Terrible Pun of the Day" (Client) to access your contacts. The **Client redirects your browser** to the **Authorization Server**. This request includes the **Client ID**, the **Redirect URI**, the desired **Response Type** (e.g., "code"), and the requested **Scopes** (e.g., "read contacts").
+
+2. **Authentication (if needed):** The Authorization Server verifies who you are. If you're not logged in, it prompts you to do so.
+
+3. **Consent:** The Authorization Server presents a form or page showing the Scopes the Client is requesting and asks you (Resource Owner) if you want to grant or deny permission.
+
+4. **Authorization Code Grant:** If you grant permission (Consent), the **Authorization Server redirects your browser back to the Client** using the specified Redirect URI. This redirect includes a temporary **Authorization Code** in the URL.
+
+5. **Code Exchange Request:** The **Client receives the Authorization Code** from the redirect. The **Client then contacts the Authorization Server directly** (this communication is not through your browser). The Client sends its **Client ID, Client Secret**, and the received **Authorization Code** to the Authorization Server.
+
+6. **Token Issuance:** The Authorization Server verifies the received data (Client ID, Client Secret, and Authorization Code). If valid, the Authorization Server issues an **Access Token** and sends it back to the Client.
+
+7. **Resource Access:** The **Client receives the Access Token**. The Client then uses this Access Token to make requests to the **Resource Server** (e.g., an API endpoint for contacts). The request is like: "Here's an access token, please give me the contacts associated with the owner of this token".
+
+8. **Resource Response:** The Resource Server receives the request and the Access Token. It **verifies the Access Token** with the Authorization Server. If the token is valid and has the necessary permissions (Scopes), the Resource Server responds with the requested data (e.g., your contacts).
+
+It's important to note that the Client and Authorization Server establish their relationship (getting the Client ID and Client Secret) *before* the Resource Owner initiates a flow. The Client Secret **must be kept secret**.
 
 ### 2. Implicit Flow
 
