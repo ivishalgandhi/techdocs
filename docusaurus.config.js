@@ -28,8 +28,8 @@ const config = {
       },
     ],
   ],
-  title: 'TechDocs',
-  tagline: 'Comprehensive Technical Documentation Resource',
+  title: 'TechDocs | Vishal Gandhi',
+  tagline: 'My Technical Learning Journal',
   favicon: 'img/favicon.ico',
 
   // Set the production url of your site here

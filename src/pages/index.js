@@ -182,12 +182,12 @@ export default function Home() {
           <div className="row">
             <div className="col col--8 col--offset-2">
               <Heading as="h2" className="margin-bottom--md text--center">
-                Welcome to My Technical Learning Log
+                Vishal Gandhi's Technical Learning Journal
               </Heading>
               <p className="margin-bottom--lg">
-                This is my daily technical learning log that I've open-sourced and shared with the world. 
-                Here, I document various technical concepts, tools, and best practices I've learned along my journey.
-                Feel free to explore the documentation, contribute, or use it for your own learning!
+                Welcome to my technical documentation resource where I document my learning journey. 
+                Similar to my blog <a href="https://vishalgandhi.in">The Data Column</a>, this site contains detailed guides, references, 
+                and tutorials on various technologies I've worked with. Everything here is open-sourced and shared with the community.
               </p>
               <div className="text--center margin-top--lg">
                 <Link
