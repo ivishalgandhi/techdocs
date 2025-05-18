@@ -195,19 +195,16 @@ export default function Home() {
                 Here, I document various technical concepts, tools, and best practices I've learned along my journey.
                 Feel free to explore the documentation, contribute, or use it for your own learning!
               </p>
+              <div className="text--center margin-top--lg">
+                <Link
+                  className="button button--primary button--lg"
+                  to="/docs">
+                  Browse All Documentation
+                </Link>
+              </div>
             </div>
           </div>
         </div>
-        
-        <TopicCategory
-          title="Authentication & Identity"
-          description="Explore modern authentication protocols and identity management solutions."
-          id="auth"
-        >
-          <div className="col col--12">
-            <TopicGrid topics={authTopics} />
-          </div>
-        </TopicCategory>
       </main>
     </Layout>
   );
