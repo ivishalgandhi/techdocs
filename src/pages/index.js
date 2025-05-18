@@ -14,13 +14,7 @@ function HomepageHeader() {
           {siteConfig.title}
         </Heading>
         <p className="hero__subtitle">{siteConfig.tagline}</p>
-        <div className={styles.buttons}>
-          <Link
-            className="button button--secondary button--lg"
-            to="/docs">
-            Browse Documentation
-          </Link>
-        </div>
+
       </div>
     </header>
   );
@@ -198,7 +192,7 @@ export default function Home() {
               <div className="text--center margin-top--lg">
                 <Link
                   className="button button--primary button--lg"
-                  to="/docs">
+                  to="/docs/auth/auth-index">
                   Browse All Documentation
                 </Link>
               </div>
