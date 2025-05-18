@@ -44,20 +44,41 @@ Additional important terminology includes:
 
 ```mermaid
 sequenceDiagram
-    participant User as Resource Owner
-    participant App as Client
-    participant Auth as Authorization Server
-    participant API as Resource Server
+    autonumber
+    box transparent User Side
+        participant User as Resource Owner
+    end
+    box transparent Client Side
+        participant App as Client
+    end
+    box rgba(0,128,255,0.1) Authorization Services
+        participant Auth as Authorization Server
+        participant API as Resource Server
+    end
     
     User->>App: Use Application
-    App->>Auth: Authorization Request
-    Auth->>User: Authentication & Authorization
-    User->>Auth: Consent
-    Auth->>App: Authorization Code
-    App->>Auth: Token Request (with Auth Code)
-    Auth->>App: Access Token
-    App->>API: API Request with Access Token
-    API->>App: Protected Resource
+    note over App: Client needs resource<br/>access on behalf of user
+    
+    App->>+Auth: Authorization Request<br/>(client_id, redirect_uri, scope, response_type=code)
+    Auth->>+User: Authentication & Authorization
+    note right of Auth: Verify user identity<br/>and show consent screen
+    User->>-Auth: Consent (Allow Access)
+    Auth-->>-App: Redirect with Authorization Code
+    note over App, Auth: User's browser redirects to<br/>https://client.example.com/callback?code=abc123
+    
+    App->>+Auth: Token Request with Auth Code<br/>(code, client_id, client_secret, redirect_uri)
+    Auth->>-App: Access Token (+ optional Refresh Token)
+    
+    note right of App: Client stores tokens securely
+    
+    App->>+API: API Request with Access Token<br/>(Authorization: Bearer token123)
+    API->>+Auth: Validate Token (optional)
+    Auth->>-API: Token Valid + Scope Information
+    API->>-App: Protected Resource
+    
+    rect rgb(240,240,240)
+        note over App, API: Token lifecycle management includes<br/>refreshing expired tokens and<br/>possible token revocation
+    end
 ```
 
 ## Authorization Grant Types
@@ -86,6 +107,64 @@ flowchart LR
 ### The OAuth 2.0 Authorization Code Flow Example
 
 Let's use the example of a website called "Terrible Pun of the Day" that wants to access your email contacts. Here's how the authorization code flow works in detail:
+
+```mermaid
+sequenceDiagram
+    autonumber
+    box transparent User Browser
+        participant User as You (Resource Owner)<br>End User
+    end
+    box rgba(255,230,180,0.2) Client Application
+        participant PunApp as Terrible Pun of the Day (Client)<br>e.g., Third-party App, Spotify, Slack
+    end
+    box rgba(200,230,255,0.2) Identity Provider
+        participant EmailAuth as Email Service (Auth Server)<br>e.g., Google, Okta, Auth0, Azure AD, Dex
+    end
+    box rgba(200,255,200,0.2) Resource Provider
+        participant EmailAPI as Email API (Resource Server)<br>e.g., Gmail API, Microsoft Graph API
+    end
+    
+    note over User,PunApp: Authorization Request Phase
+    
+    User->>+PunApp: Click "Connect to Email"
+    PunApp-->>-User: Redirect to Email Service
+    
+    note over User,EmailAuth: Authentication Phase
+    
+    User->>+EmailAuth: Arrive at Email Auth page
+    EmailAuth->>User: Request login (if needed)
+    User->>EmailAuth: Login with credentials
+    
+    rect rgb(255,250,220)
+        note right of EmailAuth: Consent Screen
+        EmailAuth->>User: Ask for consent: "Allow Terrible Pun of the Day\nto access your contacts?"
+        User-->>EmailAuth: Click "Allow"
+        EmailAuth->>-EmailAuth: Process consent
+    end
+    
+    note over User,PunApp: Authorization Code Grant
+    
+    EmailAuth-->>User: Redirect to https://terrible-pun-app.com/callback?code=abc123
+    User->>+PunApp: Return to /callback endpoint with authorization code
+    
+    note over PunApp,EmailAuth: Token Exchange (Back Channel)
+    
+    PunApp->>+EmailAuth: Exchange code + client_secret for access token
+    note right of PunApp: POST /token\ncode=abc123&\nclient_id=client123&\nclient_secret=secret456&\ngrant_type=authorization_code
+    EmailAuth->>-PunApp: Return access token
+    
+    note over PunApp,EmailAPI: Resource Access
+    
+    PunApp->>+EmailAPI: Request contacts using access token
+    note right of PunApp: GET /contacts\nAuthorization: Bearer eyJhbGci...
+    opt Token Validation
+        EmailAPI->>+EmailAuth: Validate token
+        EmailAuth->>-EmailAPI: Confirm token is valid
+    end
+    EmailAPI->>-PunApp: Return your contacts
+    
+    PunApp->>User: Show "Sending puns to your contacts!"
+```
 
 1. **Initiate Request:** You (Resource Owner) want "Terrible Pun of the Day" (Client) to access your contacts. The **Client redirects your browser** to the **Authorization Server**. This request includes the **Client ID**, the **Redirect URI**, the desired **Response Type** (e.g., "code"), and the requested **Scopes** (e.g., "read contacts").
 
@@ -480,3 +559,4 @@ While OAuth 2.0 itself doesn't provide authentication, its extension OpenID Conn
 - [Proof Key for Code Exchange (RFC 7636)](https://tools.ietf.org/html/rfc7636)
 - [OAuth 2.0 Token Introspection (RFC 7662)](https://tools.ietf.org/html/rfc7662)
 - [OAuth.net Official Website](https://oauth.net/2/)
+- [An Illustrated Guide to OAuth and OpenID Connect](https://www.youtube.com/watch?v=t18YB3xDfXI)
