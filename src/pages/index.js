@@ -192,7 +192,7 @@ export default function Home() {
               <div className="text--center margin-top--lg">
                 <Link
                   className="button button--primary button--lg"
-                  to="/docs/auth/auth-index">
+                  to="/docs">
                   Browse All Documentation
                 </Link>
               </div>
