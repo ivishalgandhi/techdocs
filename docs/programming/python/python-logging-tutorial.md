@@ -132,9 +132,9 @@ def log(logger=None):
 
 # Configure a named logger
 logger = logging.getLogger('my_module')
-logger.setLevel(logging.DEBUG)
-handler = logging.StreamHandler()
-formatter = logging.Formatter('%(asctime)s [%(levelname)s] %(name)s: %(message)s')
+logger.setLevel(logging.DEBUG)  # Set the minimum level to capture
+handler = logging.StreamHandler()  # Output to console
+formatter = logging.Formatter('%(asctime)s [%(levelname)s] %(name)s: %(message)s')  # Format with timestamp
 handler.setFormatter(formatter)
 logger.addHandler(handler)
 
@@ -147,6 +147,9 @@ multiply(4, 5)
 
 Output (in console):
 2025-05-25 06:17:00 [DEBUG] my_module: Calling multiply with args: (4, 5), kwargs: {}
+```
+
+This advanced decorator logs both function calls with their arguments (at DEBUG level) and any exceptions (at ERROR level), providing more context for debugging.
 
 ## Step 5: Setting Up Centralized Logging Configuration
 
@@ -713,19 +716,23 @@ def setup_k8s_logging():
             if trace_id:
                 log_record["trace_id"] = trace_id
                 
-            # Include exception info if present
+            # Include exception info
             if record.exc_info:
-                log_record["exception"] = self.formatException(record.exc_info)
+                log_record["exception"] = {
+                    "type": record.exc_info[0].__name__,
+                    "message": str(record.exc_info[1]),
+                    "traceback": traceback.format_exception(*record.exc_info)
+                }
                 
-            # Add any extra fields
+            # Add any extra attributes from the LogRecord
             for key, value in record.__dict__.items():
-                if key not in ["args", "asctime", "created", "exc_info", "exc_text", 
+                if key not in ("args", "asctime", "created", "exc_info", "exc_text", 
                               "filename", "funcName", "id", "levelname", "levelno", 
-                              "lineno", "module", "msecs", "message", "msg", 
-                              "name", "pathname", "process", "processName", 
-                              "relativeCreated", "stack_info", "thread", "threadName"]:
+                              "lineno", "module", "msecs", "message", "msg", "name", 
+                              "pathname", "process", "processName", "relativeCreated", 
+                              "stack_info", "thread", "threadName", "props"):
                     log_record[key] = value
-                    
+        
             return json.dumps(log_record)
     
     # Configure the logger
@@ -766,11 +773,7 @@ def k8s_log(logger=None):
             
             # Log the start of the operation
             logger.info(f"Starting operation {func.__name__}", 
-                       extra={
-                           "operation_id": operation_id,
-                           "operation": func.__name__,
-                           "status": "started"
-                       })
+                       extra={"operation_id": operation_id})
             
             try:
                 # Execute the function
@@ -779,24 +782,13 @@ def k8s_log(logger=None):
                 # Log successful completion
                 execution_time = time.time() - start_time
                 logger.info(f"Operation {func.__name__} completed successfully",
-                           extra={
-                               "operation_id": operation_id,
-                               "operation": func.__name__,
-                               "status": "success",
-                               "execution_time": execution_time
-                           })
+                           extra={"operation_id": operation_id})
                 return result
             except Exception as e:
                 # Log the failure
                 execution_time = time.time() - start_time
                 logger.error(f"Operation {func.__name__} failed: {str(e)}",
-                            extra={
-                                "operation_id": operation_id,
-                                "operation": func.__name__,
-                                "status": "failed",
-                                "execution_time": execution_time,
-                                "error_type": e.__class__.__name__
-                            },
+                            extra={"operation_id": operation_id},
                             exc_info=True)
                 raise
         return wrapper
@@ -1052,10 +1044,21 @@ spec:
           valueFrom:
             fieldRef:
               fieldPath: metadata.namespace
-        - name: POD_NAME
+        - name: K8S_NODE_NAME
           valueFrom:
             fieldRef:
-              fieldPath: metadata.name
+              fieldPath: spec.nodeName
+        - name: K8S_CONTAINER_NAME
+          value: "app"
+        - name: SERVICE_NAME
+          value: "python-app"
+        resources:
+          limits:
+            memory: "256Mi"
+            cpu: "500m"
+          requests:
+            memory: "128Mi"
+            cpu: "250m"
         volumeMounts:
         - name: log-volume
           mountPath: /app/logs
@@ -1500,299 +1503,6 @@ This tutorial has covered the following scenarios for logging in containerized a
 
 By implementing these patterns, your team will have a robust logging system for containerized applications running in Kubernetes that enables effective monitoring, troubleshooting, and performance analysis.
 
-## References
-
-- [Python Logging Official Documentation](https://docs.python.org/3/library/logging.html)
-- [Structured Logging with Python](https://www.honeybadger.io/blog/python-structured-logging/)
-- [Python Logging Best Practices](https://machinelearningmastery.com/logging-in-python/)
-- [OpenTelemetry for Python](https://opentelemetry.io/docs/instrumentation/python/)
-
-```python
-import logging
-import functools
-
-def log_error(func):
-    @functools.wraps(func)
-    def wrapper(*args, **kwargs):
-        try:
-            return func(*args, **kwargs)
-        except Exception as e:
-            logging.error(f"An error occurred in {func.__name__}: {str(e)}")
-            raise
-    return wrapper
-
-@log_error
-def divide(a, b):
-    return a / b
-
-try:
-    divide(10, 0)
-except ZeroDivisionError as e:
-    print(f"Caught exception: {e}")
-```
-
-Output (in logs):
-ERROR:root:An error occurred in divide: division by zero
-
-This uses functools.wraps to preserve function metadata and logs exceptions at the ERROR level.
-Implementation: Advanced Logging Decorator
-For comprehensive logging, this decorator logs function arguments and uses a named logger:
-
-```python
-import logging
-import functools
-
-def log(logger=None):
-    if logger is None:
-        logger = logging.getLogger(__name__)
-
-    def decorator(func):
-        @functools.wraps(func)
-        def wrapper(*args, **kwargs):
-            logger.debug(f"Calling {func.__name__} with args: {args}, kwargs: {kwargs}")
-            try:
-                result = func(*args, **kwargs)
-                return result
-            except Exception as e:
-                logger.error(f"An error occurred in {func.__name__}: {str(e)}")
-                raise
-        return wrapper
-    return decorator
-```
-
-### Step 4.1: Configure a named logger
-
-Unlike our basic example that used the root logger, it's better practice to use named loggers. Create a named logger and configure it:
-
-```python
-# Create a file named advanced_logging.py
-import logging
-import functools
-
-# First define the decorator (code above)
-
-# Then configure a named logger
-logger = logging.getLogger('my_module')
-logger.setLevel(logging.DEBUG)  # Set the minimum level to capture
-handler = logging.StreamHandler()  # Output to console
-formatter = logging.Formatter('%(asctime)s [%(levelname)s] %(name)s: %(message)s')  # Format with timestamp
-handler.setFormatter(formatter)
-logger.addHandler(handler)
-```
-
-### Step 4.2: Apply the decorator to a function
-
-Now apply the decorator to a function and test it:
-
-```python
-@log(logger=logger)  # Pass our configured logger to the decorator
-def multiply(a, b):
-    return a * b
-
-result = multiply(4, 5)
-print(f"Result: {result}")
-```
-
-### Step 4.3: Run and check the output
-
-When you run this code, you'll see detailed logging information:
-
-**Output (in console):**
-```
-2025-05-25 06:17:00 [DEBUG] my_module: Calling multiply with args: (4, 5), kwargs: {}
-Result: 20
-```
-
-This advanced decorator logs both function calls with their arguments (at DEBUG level) and any exceptions (at ERROR level), providing more context for debugging.
-
-## Configuring Logging for Scalability
-Centralized configuration ensures consistency. Below is an example using logging.config.dictConfig:
-
-```python
-import logging.config
-
-LOGGING_CONFIG = {
-    'version': 1,
-    'disable_existing_loggers': False,
-    'formatters': {
-        'standard': {
-            'format': '%(asctime)s [%(levelname)s] %(name)s: %(message)s'
-        },
-        'json': {
-            '()': 'pythonjsonlogger.jsonlogger.JsonFormatter',
-            'format': '%(asctime)s %(levelname)s %(name)s %(message)s'
-        },
-    },
-    'handlers': {
-        'console': {
-            'level': 'INFO',
-            'formatter': 'standard',
-            'class': 'logging.StreamHandler',
-            'stream': 'ext://sys.stdout'
-        },
-        'file': {
-            'level': 'DEBUG',
-            'formatter': 'json',
-            'class': 'logging.handlers.RotatingFileHandler',
-            'filename': 'application.log',
-            'maxBytes': 10485760,  # 10MB
-            'backupCount': 5
-        },
-    },
-    'loggers': {
-        '': {
-            'handlers': ['console', 'file'],
-            'level': 'DEBUG',
-            'propagate': True
-        },
-        'my_module': {
-            'handlers': ['file'],
-            'level': 'DEBUG',
-            'propagate': False
-        },
-    }
-}
-```
-
-```python
-logging.config.dictConfig(LOGGING_CONFIG)
-```
-This configuration includes:
-
-- A console handler for INFO-level logs.
-- A file handler with JSON formatting using pythonjsonlogger.jsonlogger.JsonFormatter and log rotation (10MB per file, 5 backups).
-- A named logger (my_module) for module-specific logging.
-
-## Handling Failures with Logs
-When a failure occurs, logs are critical for diagnosis. Here’s how to use them effectively:
-
-### 1. Locate Log Files
-
-- For FileHandler, check the specified file (e.g., application.log).
-- In production, access logs via centralized platforms like ELK Stack or Splunk.
-
-### 2. Read and Interpret Logs
-
-- Filter for ERROR or CRITICAL messages to identify failures.
-- Use timestamps to sequence events leading to the issue.
-- Review stack traces for detailed exception information.
-
-### 3. Debugging with Logs
-
-- Use logged function calls and arguments to reproduce the failure.
-- Identify patterns or recurring errors indicating systemic issues.
-- Parse structured logs (e.g., JSON) to analyze trends programmatically.
-
-### 4. Real-Time Log Monitoring
-
-- Use tools like ELK Stack, Splunk, or SigNoz for live monitoring.
-- Configure alerts for critical log levels to receive immediate notifications.
-
-### Example: Debugging a Failure
-Consider a ZeroDivisionError. The log might show:
-
-```python
-2025-05-25 06:17:00 [DEBUG] my_module: Calling divide with args: (10, 0), kwargs: {}
-2025-05-25 06:17:00 [ERROR] my_module: An error occurred in divide: division by zero
-```
-
-This indicates `divide(10, 0)` caused the error, enabling quick identification and resolution.
-
-## Best Practices Summary
-
-The following table summarizes best practices for logging in applications:
-
-| Practice | Description | Example/Code |
-|----------|-------------|---------------|
-| Use Named Loggers | Organize logs by module for granularity | `logger = logging.getLogger(__name__)` |
-| Set Optimal Logging Levels | Use DEBUG for development, INFO or higher for production | `logger.setLevel(logging.INFO)` |
-| Structured Logging | Use JSON for machine-readable logs | `logger.info("Event", extra={"event_name": "purchase"})` |
-| Avoid Sensitive Data | Mask or omit PII and secrets | `logger.debug(f"User: {mask_pii(user_id)}")` |
-| Log Rotation | Prevent disk space issues with RotatingFileHandler | `RotatingFileHandler('app.log', maxBytes=10*1024*1024, backupCount=5)` |
-| Centralized Logging | Aggregate logs using ELK, Splunk, or cloud services | Use `logging.handlers.HTTPHandler` for centralized systems |
-| Monitor Logs | Set up alerts for critical issues | Integrate with tools like SigNoz or Datadog |
-| Performance Optimization | Avoid excessive logging in critical paths | Check log level before expensive operations |
-| Consistent Third-Party Logging | Align log levels with external libraries | Configure library loggers in `LOGGING_CONFIG` |
-| Log Health Checks | Verify logs are generated and accessible | Periodic checks for missing logs or disk usage |
-
-
-## Advanced Considerations
-
-### Custom Handlers
-Use custom handlers, such as `HTTPHandler`, to send logs to internal monitoring systems for real-time analysis:
-
-```python
-from logging.handlers import HTTPHandler
-import json
-
-class JsonHTTPHandler(HTTPHandler):
-    """Custom handler to send JSON-formatted logs to a monitoring service"""
-    
-    def mapLogRecord(self, record):
-        # Convert log record to JSON format
-        record_dict = record.__dict__.copy()
-        return json.dumps(record_dict)
-        
-# Add to your configuration
-handler = JsonHTTPHandler(host='monitoring.example.com:443', 
-                          url='/api/logs', 
-                          method='POST',
-                          secure=True)
-```
-
-### Class Methods
-Decorators can be adapted for class methods by handling `self` appropriately:
-
-```python
-def method_logger(logger=None):
-    if logger is None:
-        logger = logging.getLogger(__name__)
-        
-    def decorator(method):
-        @functools.wraps(method)
-        def wrapper(self, *args, **kwargs):
-            class_name = self.__class__.__name__
-            logger.debug(f"{class_name}.{method.__name__} called with {args}, {kwargs}")
-            try:
-                result = method(self, *args, **kwargs)
-                return result
-            except Exception as e:
-                logger.error(f"Error in {class_name}.{method.__name__}: {e}", exc_info=True)
-                raise
-        return wrapper
-    return decorator
-```
-
-### Asynchronous Logging
-For performance-critical applications, `QueueHandler` enables asynchronous logging to avoid blocking the main thread:
-
-```python
-import logging
-import queue
-import threading
-from logging.handlers import QueueHandler, QueueListener
-
-# Create queue and handlers
-log_queue = queue.Queue(-1)  # No limit on size
-queue_handler = QueueHandler(log_queue)
-
-# Configure root logger with queue handler
-root = logging.getLogger()
-root.addHandler(queue_handler)
-root.setLevel(logging.DEBUG)
-
-# Regular handlers that will process records from the queue
-file_handler = logging.FileHandler("app.log")
-file_handler.setFormatter(logging.Formatter('%(asctime)s %(levelname)s: %(message)s'))
-
-# Set up listener
-listener = QueueListener(log_queue, file_handler)
-listener.start()
-
-# To stop the listener when the application exits
-# listener.stop()
-```
-
 ## Conclusion
 Using decorator functions for logging in Python aligns with enterprise-level requirements for scalable systems. By implementing decorators that log function calls, arguments, and exceptions, and combining them with named loggers, structured formats, and centralized configurations, developers can achieve robust observability. 
 
@@ -1833,3 +1543,5 @@ By following this tutorial, you've gained the knowledge to implement professiona
 *   [Splunk Platform Overview](https://www.splunk.com/en_us/platform.html)
 *   [SigNoz Open-Source Observability](https://signoz.io/)
 *   [OpenTelemetry for Python](https://opentelemetry.io/docs/instrumentation/python/)
+*   [Structured Logging with Python](https://www.honeybadger.io/blog/python-structured-logging/)
+*   [Python Logging Best Practices](https://machinelearningmastery.com/logging-in-python/)
