@@ -466,6 +466,8 @@ Logging becomes even more powerful when integrated with web frameworks.
 
 ### Step 10.1: Flask integration
 
+**Scenario covered: Web application logging with request context**
+
 Create a file named `flask_logging_example.py`:
 
 ```python
@@ -512,6 +514,8 @@ if __name__ == '__main__':
 
 ### Step 10.2: Django integration
 
+**Scenario covered: Distributed web applications with request tracking**
+
 For Django applications, create a file named `django_logging_middleware.py`:
 
 ```python
@@ -546,6 +550,955 @@ class RequestLoggingMiddleware:
         
         return response
 ```
+
+## Step 11: Containerized Logging
+
+**Scenario covered: Logging in Docker containers**
+
+When running Python applications in containers, logging requires special consideration. Let's implement logging for containerized applications.
+
+### Step 11.1: Configure logging to stdout/stderr
+
+Create a file named `container_logging.py`:
+
+```python
+import logging
+import sys
+import json
+
+# When running in containers, log to stdout/stderr instead of files
+def setup_container_logging():
+    # Create a custom JSON formatter
+    class JsonFormatter(logging.Formatter):
+        def format(self, record):
+            log_record = {
+                "timestamp": self.formatTime(record, self.datefmt),
+                "level": record.levelname,
+                "message": record.getMessage(),
+                "logger": record.name
+            }
+            # Add exception info if present
+            if record.exc_info:
+                log_record["exception"] = self.formatException(record.exc_info)
+                
+            # Add extra fields from record
+            for key, value in record.__dict__.items():
+                if key not in ["args", "asctime", "created", "exc_info", "exc_text", 
+                              "filename", "funcName", "id", "levelname", "levelno", 
+                              "lineno", "module", "msecs", "message", "msg", 
+                              "name", "pathname", "process", "processName", 
+                              "relativeCreated", "stack_info", "thread", "threadName"]:
+                    log_record[key] = value
+                    
+            return json.dumps(log_record)
+    
+    # Configure root logger
+    root_logger = logging.getLogger()
+    root_logger.setLevel(logging.INFO)
+    
+    # Remove existing handlers
+    for handler in root_logger.handlers:
+        root_logger.removeHandler(handler)
+    
+    # Add stdout handler for INFO and below
+    stdout_handler = logging.StreamHandler(sys.stdout)
+    stdout_handler.setLevel(logging.DEBUG)
+    stdout_handler.addFilter(lambda record: record.levelno <= logging.INFO)
+    stdout_handler.setFormatter(JsonFormatter())
+    
+    # Add stderr handler for WARNING and above
+    stderr_handler = logging.StreamHandler(sys.stderr)
+    stderr_handler.setLevel(logging.WARNING)
+    stderr_handler.setFormatter(JsonFormatter())
+    
+    # Add handlers to root logger
+    root_logger.addHandler(stdout_handler)
+    root_logger.addHandler(stderr_handler)
+    
+    return root_logger
+```
+
+### Step 11.2: Create a Dockerfile
+
+Create a `Dockerfile` to package your application:
+
+```Dockerfile
+FROM python:3.9-slim
+
+WORKDIR /app
+
+COPY requirements.txt .
+RUN pip install --no-cache-dir -r requirements.txt
+
+COPY . .
+
+# Use environment variables for configuration
+ENV LOG_LEVEL=INFO
+
+# Run the application
+CMD ["python", "app.py"]
+```
+
+### Step 11.3: Modify your application for container-friendly logging
+
+Update your application code to use environment variables for configuration:
+
+```python
+# app.py
+import os
+import logging
+from container_logging import setup_container_logging
+
+# Setup container-friendly logging
+logger = setup_container_logging()
+
+# Get log level from environment variable
+log_level = os.environ.get("LOG_LEVEL", "INFO").upper()
+logger.setLevel(getattr(logging, log_level))
+
+@log_error
+def my_function():
+    logger.info("This is a containerized application")
+    # Your application code here
+
+if __name__ == "__main__":
+    logger.info("Application starting up")
+    my_function()
+    logger.info("Application shutting down")
+```
+
+## Step 12: Kubernetes Logging
+
+**Scenario covered: Structured logging in Kubernetes environments**
+
+When running applications in Kubernetes, effective logging becomes even more important due to the distributed nature of the platform.
+
+### Step 12.1: Configure logging for Kubernetes
+
+Create a file named `k8s_logging.py` with Kubernetes-specific enhancements:
+
+```python
+import logging
+import json
+import os
+import socket
+
+def setup_k8s_logging():
+    # Create a Kubernetes-aware formatter
+    class KubernetesJsonFormatter(logging.Formatter):
+        def format(self, record):
+            # Basic log record fields
+            log_record = {
+                "timestamp": self.formatTime(record, self.datefmt),
+                "level": record.levelname,
+                "message": record.getMessage(),
+                "logger": record.name,
+                
+                # Kubernetes metadata
+                "kubernetes": {
+                    "pod_name": os.environ.get("HOSTNAME", socket.gethostname()),
+                    "namespace": os.environ.get("K8S_NAMESPACE", "default"),
+                    "container_name": os.environ.get("K8S_CONTAINER_NAME", "app"),
+                    "node_name": os.environ.get("K8S_NODE_NAME", "unknown")
+                }
+            }
+            
+            # Add service name if available
+            service_name = os.environ.get("SERVICE_NAME")
+            if service_name:
+                log_record["service"] = service_name
+                
+            # Add trace ID if available (for distributed tracing)
+            trace_id = getattr(record, 'trace_id', None)
+            if trace_id:
+                log_record["trace_id"] = trace_id
+                
+            # Include exception info if present
+            if record.exc_info:
+                log_record["exception"] = self.formatException(record.exc_info)
+                
+            # Add any extra fields
+            for key, value in record.__dict__.items():
+                if key not in ["args", "asctime", "created", "exc_info", "exc_text", 
+                              "filename", "funcName", "id", "levelname", "levelno", 
+                              "lineno", "module", "msecs", "message", "msg", 
+                              "name", "pathname", "process", "processName", 
+                              "relativeCreated", "stack_info", "thread", "threadName"]:
+                    log_record[key] = value
+                    
+            return json.dumps(log_record)
+    
+    # Configure the logger
+    logger = logging.getLogger()
+    logger.setLevel(logging.INFO)
+    
+    # Clear existing handlers
+    for handler in logger.handlers:
+        logger.removeHandler(handler)
+        
+    # Add stdout handler with JSON formatting
+    handler = logging.StreamHandler()
+    handler.setFormatter(KubernetesJsonFormatter())
+    logger.addHandler(handler)
+    
+    return logger
+```
+
+### Step 12.2: Create decorators for Kubernetes-aware logging
+
+```python
+import functools
+import time
+import uuid
+
+def k8s_log(logger=None):
+    if logger is None:
+        logger = logging.getLogger(__name__)
+        
+    def decorator(func):
+        @functools.wraps(func)
+        def wrapper(*args, **kwargs):
+            # Generate a unique ID for this operation
+            operation_id = str(uuid.uuid4())
+            
+            # Capture start time
+            start_time = time.time()
+            
+            # Log the start of the operation
+            logger.info(f"Starting operation {func.__name__}", 
+                       extra={
+                           "operation_id": operation_id,
+                           "operation": func.__name__,
+                           "status": "started"
+                       })
+            
+            try:
+                # Execute the function
+                result = func(*args, **kwargs)
+                
+                # Log successful completion
+                execution_time = time.time() - start_time
+                logger.info(f"Operation {func.__name__} completed successfully",
+                           extra={
+                               "operation_id": operation_id,
+                               "operation": func.__name__,
+                               "status": "success",
+                               "execution_time": execution_time
+                           })
+                return result
+            except Exception as e:
+                # Log the failure
+                execution_time = time.time() - start_time
+                logger.error(f"Operation {func.__name__} failed: {str(e)}",
+                            extra={
+                                "operation_id": operation_id,
+                                "operation": func.__name__,
+                                "status": "failed",
+                                "execution_time": execution_time,
+                                "error_type": e.__class__.__name__
+                            },
+                            exc_info=True)
+                raise
+        return wrapper
+    return decorator
+```
+
+### Step 12.3: Kubernetes deployment configuration
+
+Create a Kubernetes deployment YAML with appropriate logging configuration:
+
+```yaml
+apiVersion: apps/v1
+kind: Deployment
+metadata:
+  name: python-app
+spec:
+  replicas: 3
+  selector:
+    matchLabels:
+      app: python-app
+  template:
+    metadata:
+      labels:
+        app: python-app
+    spec:
+      containers:
+      - name: app
+        image: your-registry/python-app:latest
+        env:
+        - name: LOG_LEVEL
+          value: "INFO"
+        - name: K8S_NAMESPACE
+          valueFrom:
+            fieldRef:
+              fieldPath: metadata.namespace
+        - name: K8S_NODE_NAME
+          valueFrom:
+            fieldRef:
+              fieldPath: spec.nodeName
+        - name: K8S_CONTAINER_NAME
+          value: "app"
+        - name: SERVICE_NAME
+          value: "python-app"
+        resources:
+          limits:
+            memory: "256Mi"
+            cpu: "500m"
+          requests:
+            memory: "128Mi"
+            cpu: "250m"
+```
+
+## Step 13: Distributed Tracing with Logging
+
+**Scenario covered: Microservices logging across Kubernetes pods**
+
+In a microservices architecture running in Kubernetes, request tracing becomes critical.
+
+### Step 13.1: Create a tracing decorator
+
+```python
+import functools
+import uuid
+import logging
+from opentelemetry import trace
+from opentelemetry.trace.propagation.tracecontext import TraceContextTextMapPropagator
+
+# Initialize tracer
+tracer = trace.get_tracer(__name__)
+
+def trace_request(logger=None):
+    if logger is None:
+        logger = logging.getLogger(__name__)
+        
+    def decorator(func):
+        @functools.wraps(func)
+        def wrapper(*args, **kwargs):
+            # Get current span context or create a new one
+            current_span = trace.get_current_span()
+            span_context = current_span.get_span_context()
+            
+            # If no span context exists, create a new trace ID
+            if not span_context.is_valid:
+                trace_id = str(uuid.uuid4())
+            else:
+                trace_id = format(span_context.trace_id, '032x')
+            
+            # Log with trace ID
+            with tracer.start_as_current_span(func.__name__) as span:
+                logger.info(f"Executing {func.__name__}", 
+                           extra={"trace_id": trace_id})
+                
+                try:
+                    result = func(*args, **kwargs)
+                    span.set_status(trace.StatusCode.OK)
+                    return result
+                except Exception as e:
+                    span.set_status(trace.StatusCode.ERROR)
+                    logger.error(f"Error in {func.__name__}: {str(e)}", 
+                               extra={"trace_id": trace_id}, 
+                               exc_info=True)
+                    raise
+        return wrapper
+    return decorator
+```
+
+### Step 13.2: Set up service-to-service communication with trace propagation
+
+```python
+import requests
+from opentelemetry.trace.propagation.tracecontext import TraceContextTextMapPropagator
+
+def call_service(service_url, endpoint, data=None, method="GET"):
+    # Create a carrier for the trace context
+    carrier = {}
+    
+    # Inject the current trace context into the carrier
+    TraceContextTextMapPropagator().inject(carrier)
+    
+    # Add the trace context to request headers
+    headers = {"Content-Type": "application/json"}
+    headers.update(carrier)
+    
+    # Make the request with the propagated context
+    if method == "GET":
+        response = requests.get(f"{service_url}/{endpoint}", headers=headers)
+    elif method == "POST":
+        response = requests.post(f"{service_url}/{endpoint}", json=data, headers=headers)
+    
+    return response.json()
+```
+
+### Step 13.3: Kubernetes configuration for log aggregation
+
+Create a ConfigMap for Fluentd to collect and forward logs:
+
+```yaml
+apiVersion: v1
+kind: ConfigMap
+metadata:
+  name: fluentd-config
+data:
+  fluent.conf: |
+    <source>
+      @type tail
+      path /var/log/containers/*.log
+      pos_file /var/log/fluentd-containers.log.pos
+      tag kubernetes.*
+      read_from_head true
+      <parse>
+        @type json
+        time_format %Y-%m-%dT%H:%M:%S.%NZ
+      </parse>
+    </source>
+    
+    <filter kubernetes.**>
+      @type kubernetes_metadata
+      kubernetes_url https://kubernetes.default.svc
+      bearer_token_file /var/run/secrets/kubernetes.io/serviceaccount/token
+      ca_file /var/run/secrets/kubernetes.io/serviceaccount/ca.crt
+    </filter>
+    
+    <match kubernetes.**>
+      @type elasticsearch
+      host elasticsearch-logging
+      port 9200
+      logstash_format true
+      logstash_prefix k8s
+      <buffer>
+        @type file
+        path /var/log/fluentd-buffers/kubernetes.system.buffer
+        flush_mode interval
+        retry_type exponential_backoff
+        flush_thread_count 2
+        flush_interval 5s
+        retry_forever true
+        retry_max_interval 30
+        chunk_limit_size 2M
+        queue_limit_length 8
+        overflow_action block
+      </buffer>
+    </match>
+```
+
+## Step 14: Kubernetes Logging Best Practices
+
+**Scenario covered: Production-ready logging for Kubernetes-deployed applications**
+
+Here are essential best practices for implementing logging in Kubernetes environments:
+
+### Step 14.1: Use structured logging consistently
+
+```python
+# All log messages should be structured (JSON)
+# Example with structured context
+def process_order(order_data):
+    logger.info("Processing order", extra={
+        "order_id": order_data.get("id"),
+        "customer_id": order_data.get("customer_id"),
+        "items_count": len(order_data.get("items", [])),
+        "total_amount": order_data.get("total"),
+        "operation": "order_processing"
+    })
+```
+
+### Step 14.2: Implement health checks that verify logging
+
+Create a health check endpoint that verifies your logging pipeline is functioning properly:
+
+```python
+from flask import Flask, jsonify
+import logging
+import time
+
+app = Flask(__name__)
+logger = logging.getLogger()
+
+@app.route('/health')
+def health_check():
+    # Verify logging is working
+    check_id = f"health-{int(time.time())}"
+    logger.info("Health check executed", extra={"check_id": check_id})
+    
+    return jsonify({"status": "healthy", "logging": "verified", "check_id": check_id})
+```
+
+### Step 14.3: Use a sidecar pattern for log collection
+
+Create a Kubernetes deployment that uses a sidecar container for log collection:
+
+```yaml
+apiVersion: apps/v1
+kind: Deployment
+metadata:
+  name: python-app-with-logging
+spec:
+  replicas: 3
+  selector:
+    matchLabels:
+      app: python-app
+  template:
+    metadata:
+      labels:
+        app: python-app
+    spec:
+      containers:
+      - name: app
+        image: your-registry/python-app:latest
+        env:
+        - name: LOG_LEVEL
+          value: "INFO"
+        - name: K8S_NAMESPACE
+          valueFrom:
+            fieldRef:
+              fieldPath: metadata.namespace
+        - name: POD_NAME
+          valueFrom:
+            fieldRef:
+              fieldPath: metadata.name
+        volumeMounts:
+        - name: log-volume
+          mountPath: /app/logs
+      # Sidecar container for log forwarding
+      - name: log-forwarder
+        image: fluent/fluent-bit:latest
+        volumeMounts:
+        - name: log-volume
+          mountPath: /logs
+          readOnly: true
+        - name: fluent-bit-config
+          mountPath: /fluent-bit/etc/
+      volumes:
+      - name: log-volume
+        emptyDir: {}
+      - name: fluent-bit-config
+        configMap:
+          name: fluent-bit-config
+```
+
+### Step 14.4: Configure log rotation in Kubernetes
+
+Set up log rotation to prevent pods from running out of disk space:
+
+```yaml
+apiVersion: v1
+kind: ConfigMap
+metadata:
+  name: log-rotation-config
+data:
+  logrotate.conf: |
+    /app/logs/*.log {
+      daily
+      rotate 7
+      compress
+      delaycompress
+      missingok
+      notifempty
+      create 0640 root root
+      size 10M
+    }
+```
+
+## Step 15: Setting up ELK Stack with Docker
+
+**Scenario covered: Centralized logging with ELK Stack for distributed applications**
+
+The ELK Stack (Elasticsearch, Logstash, Kibana) is one of the most popular logging solutions for distributed applications. In this step, we'll set up an ELK stack using Docker and integrate it with our Python application.
+
+### Step 15.1: Create a Docker Compose file for ELK
+
+Create a file named `docker-compose-elk.yml` with the following content:
+
+```yaml
+version: '3.8'
+
+services:
+  # Elasticsearch: Stores all the logs
+  elasticsearch:
+    image: docker.elastic.co/elasticsearch/elasticsearch:8.8.0
+    container_name: elasticsearch
+    environment:
+      - node.name=elasticsearch
+      - cluster.name=es-docker-cluster
+      - bootstrap.memory_lock=true
+      - "ES_JAVA_OPTS=-Xms512m -Xmx512m"
+      - discovery.type=single-node
+      - xpack.security.enabled=false
+    ulimits:
+      memlock:
+        soft: -1
+        hard: -1
+    volumes:
+      - elasticsearch-data:/usr/share/elasticsearch/data
+    ports:
+      - 9200:9200
+    networks:
+      - elk-network
+    healthcheck:
+      test: ["CMD-SHELL", "curl -s http://localhost:9200 || exit 1"]
+      interval: 30s
+      timeout: 10s
+      retries: 3
+
+  # Logstash: Processes logs before sending to Elasticsearch
+  logstash:
+    image: docker.elastic.co/logstash/logstash:8.8.0
+    container_name: logstash
+    volumes:
+      - ./logstash/pipeline:/usr/share/logstash/pipeline:ro
+    ports:
+      - 5044:5044
+      - 5000:5000/tcp
+      - 5000:5000/udp
+      - 9600:9600
+    environment:
+      LS_JAVA_OPTS: "-Xmx256m -Xms256m"
+    networks:
+      - elk-network
+    depends_on:
+      - elasticsearch
+
+  # Kibana: Visualizes the logs
+  kibana:
+    image: docker.elastic.co/kibana/kibana:8.8.0
+    container_name: kibana
+    ports:
+      - 5601:5601
+    environment:
+      ELASTICSEARCH_URL: http://elasticsearch:9200
+      ELASTICSEARCH_HOSTS: http://elasticsearch:9200
+    networks:
+      - elk-network
+    depends_on:
+      - elasticsearch
+
+networks:
+  elk-network:
+    driver: bridge
+
+volumes:
+  elasticsearch-data:
+```
+
+### Step 15.2: Create Logstash configuration
+
+Create a directory and configuration file for Logstash:
+
+```bash
+mkdir -p logstash/pipeline
+touch logstash/pipeline/logstash.conf
+```
+
+Add the following content to `logstash/pipeline/logstash.conf`:
+
+```
+input {
+  # TCP input for direct logging
+  tcp {
+    port => 5000
+    codec => json
+  }
+  
+  # UDP input for syslog
+  udp {
+    port => 5000
+    codec => json
+  }
+  
+  # HTTP input for RESTful logging
+  http {
+    port => 8080
+    codec => json
+  }
+}
+
+filter {
+  if ![timestamp] {
+    mutate {
+      add_field => { "timestamp" => "%{@timestamp}" }
+    }
+  }
+  
+  # Parse timestamps
+  date {
+    match => [ "timestamp", "ISO8601", "yyyy-MM-dd HH:mm:ss.SSS" ]
+    target => "@timestamp"
+  }
+  
+  # Add kubernetes metadata if available
+  if [kubernetes] {
+    mutate {
+      add_field => { "[@metadata][index_suffix]" => "k8s" }
+    }
+  } else {
+    mutate {
+      add_field => { "[@metadata][index_suffix]" => "app" }
+    }
+  }
+}
+
+output {
+  elasticsearch {
+    hosts => ["elasticsearch:9200"]
+    index => "python-logs-%{[@metadata][index_suffix]}-%{+YYYY.MM.dd}"
+  }
+  
+  # For debugging
+  stdout { codec => rubydebug }
+}
+```
+
+### Step 15.3: Start the ELK Stack
+
+Start the ELK stack with Docker Compose:
+
+```bash
+docker-compose -f docker-compose-elk.yml up -d
+```
+
+### Step 15.4: Configure Python logging to send logs to ELK
+
+Create a new file `elk_logging.py` to configure Python logging for ELK:
+
+```python
+import logging
+import socket
+import json
+import traceback
+from logging.handlers import SocketHandler
+import datetime
+
+class ELKLogstashFormatter(logging.Formatter):
+    def __init__(self, service_name):
+        super(ELKLogstashFormatter, self).__init__()
+        self.service_name = service_name
+        self.hostname = socket.gethostname()
+    
+    def format(self, record):
+        log_record = {}
+        
+        # Standard fields
+        log_record['timestamp'] = datetime.datetime.utcfromtimestamp(record.created).isoformat() + 'Z'
+        log_record['level'] = record.levelname
+        log_record['host'] = self.hostname
+        log_record['service'] = self.service_name
+        log_record['message'] = record.getMessage()
+        log_record['logger'] = record.name
+        
+        # Add exception info
+        if record.exc_info:
+            log_record['exception'] = {
+                'type': record.exc_info[0].__name__,
+                'message': str(record.exc_info[1]),
+                'traceback': traceback.format_exception(*record.exc_info)
+            }
+        
+        # Add extra fields
+        if hasattr(record, 'props'):
+            log_record.update(record.props)
+        
+        # Add any extra attributes from the LogRecord
+        for key, value in record.__dict__.items():
+            if key not in ('args', 'asctime', 'created', 'exc_info', 'exc_text', 
+                           'filename', 'funcName', 'id', 'levelname', 'levelno', 
+                           'lineno', 'module', 'msecs', 'message', 'msg', 'name', 
+                           'pathname', 'process', 'processName', 'relativeCreated', 
+                           'stack_info', 'thread', 'threadName', 'props'):
+                log_record[key] = value
+        
+        return json.dumps(log_record)
+
+class LogstashHandler(SocketHandler):
+    def __init__(self, host, port, service_name):
+        super(LogstashHandler, self).__init__(host, port)
+        self.formatter = ELKLogstashFormatter(service_name)
+    
+    def makePickle(self, record):
+        message = self.formatter.format(record) + '\n'
+        return message.encode('utf-8')
+
+def setup_elk_logging(service_name, logstash_host='localhost', logstash_port=5000, level=logging.INFO):
+    """Configure Python logging to send logs to ELK Stack"""
+    root_logger = logging.getLogger()
+    root_logger.setLevel(level)
+    
+    # Remove existing handlers
+    for handler in root_logger.handlers:
+        root_logger.removeHandler(handler)
+    
+    # Add stdout handler for local debugging
+    console_handler = logging.StreamHandler()
+    console_formatter = logging.Formatter('%(asctime)s - %(name)s - %(levelname)s - %(message)s')
+    console_handler.setFormatter(console_formatter)
+    root_logger.addHandler(console_handler)
+    
+    # Add Logstash handler
+    logstash_handler = LogstashHandler(logstash_host, logstash_port, service_name)
+    root_logger.addHandler(logstash_handler)
+    
+    # Log successful setup
+    logging.info(f"ELK logging setup complete for {service_name} -> {logstash_host}:{logstash_port}")
+    
+    return root_logger
+```
+
+### Step 15.5: Use the ELK logging in your application
+
+Update your application to use ELK logging:
+
+```python
+# app.py
+import logging
+from elk_logging import setup_elk_logging
+import time
+import random
+import functools
+
+# Set up ELK logging
+logger = setup_elk_logging(
+    service_name="my-python-app",
+    logstash_host="localhost",  # Change to your Logstash host
+    logstash_port=5000,
+    level=logging.INFO
+)
+
+# Create a logging decorator
+def log_function(func):
+    @functools.wraps(func)
+    def wrapper(*args, **kwargs):
+        logger.info(f"Calling {func.__name__}", extra={
+            "function": func.__name__,
+            "args": str(args),
+            "kwargs": str(kwargs)
+        })
+        try:
+            result = func(*args, **kwargs)
+            logger.info(f"{func.__name__} completed successfully")
+            return result
+        except Exception as e:
+            logger.error(f"{func.__name__} failed: {str(e)}", exc_info=True)
+            raise
+    return wrapper
+
+# Example usage
+@log_function
+def process_item(item_id, quantity):
+    logger.info("Processing item", extra={
+        "item_id": item_id,
+        "quantity": quantity,
+        "process_time": time.time()
+    })
+    
+    # Simulate processing
+    time.sleep(random.random())
+    
+    if random.random() < 0.1:  # 10% chance of failure
+        raise ValueError("Simulated random failure")
+        
+    return {"status": "processed", "item_id": item_id}
+
+if __name__ == "__main__":
+    # Process several items
+    for i in range(20):
+        try:
+            process_item(f"ITEM-{i}", random.randint(1, 10))
+        except Exception as e:
+            print(f"Caught error: {e}")
+```
+
+### Step 15.6: Build and run with Docker
+
+Create a Dockerfile for your application:
+
+```Dockerfile
+FROM python:3.9-slim
+
+WORKDIR /app
+
+COPY requirements.txt .
+RUN pip install --no-cache-dir -r requirements.txt
+
+COPY *.py .
+
+CMD ["python", "app.py"]
+```
+
+Create a `requirements.txt` file:
+
+```
+functools32>=3.2.3;python_version<"3.4"
+python-json-logger>=2.0.7
+```
+
+Create a docker-compose file to run your app with ELK:
+
+```yaml
+version: '3.8'
+
+services:
+  # Your Python application
+  python-app:
+    build: .
+    container_name: python-app
+    environment:
+      - LOGSTASH_HOST=logstash
+      - LOGSTASH_PORT=5000
+      - SERVICE_NAME=python-app
+    networks:
+      - elk-network
+    depends_on:
+      - logstash
+    # Use the same external network as ELK stack
+
+networks:
+  elk-network:
+    external: true
+```
+
+### Step 15.7: Accessing the logs in Kibana
+
+1. Build and start your application:
+
+```bash
+docker-compose up -d
+```
+
+2. Access Kibana at [http://localhost:5601](http://localhost:5601)
+
+3. Set up an index pattern:
+   - Go to Management → Stack Management → Kibana → Index Patterns
+   - Create a new index pattern `python-logs-*`
+   - Select `timestamp` as the time field
+   - Click "Create index pattern"
+
+4. View your logs:
+   - Go to Discover
+   - Select your index pattern
+   - You should see logs from your Python application
+
+5. Create a dashboard:
+   - Create visualizations based on log fields
+   - Add visualizations to a dashboard
+   - Save and share with your team
+
+## Summary of Scenarios
+
+This tutorial has covered the following scenarios for logging in containerized applications running in Kubernetes:
+
+1. **Basic Function Logging**: Simple error logging for Python functions (Step 2)
+2. **Advanced Decorator Logging**: Detailed function call tracking with arguments (Step 4)
+3. **Centralized Configuration**: Setting up consistent logging across multiple services (Step 5)
+4. **Troubleshooting Production Issues**: Using logs to diagnose problems (Step 6)
+5. **Contextual Logging**: Adding business context to logs for better analysis (Step 7)
+6. **Thread-Safe Logging**: Handling concurrent requests in multi-threaded applications (Step 8)
+7. **Web Framework Integration**: Logging in Flask and Django applications (Step 10)
+8. **Containerized Logging**: Docker-specific logging configuration (Step 11)
+9. **Kubernetes Environment Logging**: Structured logging with Kubernetes metadata (Step 12)
+10. **Distributed Tracing**: Tracking requests across multiple microservices (Step 13)
+11. **Production Kubernetes Setup**: Best practices for logging in production K8s deployments (Step 14)
+12. **ELK Stack Integration**: Centralized logging with Elasticsearch, Logstash and Kibana (Step 15)
+
+By implementing these patterns, your team will have a robust logging system for containerized applications running in Kubernetes that enables effective monitoring, troubleshooting, and performance analysis.
 
 ## References
 
