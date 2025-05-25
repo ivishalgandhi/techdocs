@@ -1,26 +1,38 @@
 ---
 sidebar_position: 4
 title: Logging with Decorators in Python
-description: A deep dive into Python's logging with decorators with real-world examples
+description: A step-by-step tutorial on implementing Python logging with decorators
 ---
 
-# Logging with Decorators in Python
+# Logging with Decorators in Python: A Step-by-Step Tutorial
 
-## Key Points
-- Professional Python programmers use the built-in `logging` module for its flexibility and robustness.
-- Decorators are employed to standardize logging, capturing function calls, arguments, and exceptions consistently.
-- When failures occur, logs are critical for identifying issues, with `ERROR` and `CRITICAL` messages providing key insights.
-- Logs are typically accessed via local files or centralized systems like [ELK Stack](https://www.elastic.co/what-is/elk-stack) or [Splunk](https://www.splunk.com/).
-- Structured logging and real-time monitoring with tools like [SigNoz](https://signoz.io/) are used for efficient debugging.
+## Introduction
 
-## Overview
-Logging is critical for debugging, monitoring, and maintaining large-scale Python applications. Python's [`logging` module](https://docs.python.org/3/library/logging.html) provides a robust framework, and decorators simplify logging by automatically tracking function calls, arguments, and errors. This ensures logs are consistent, structured, and manageable, even in complex, distributed systems.
+Logging is a critical skill for Python developers working on production applications. This tutorial will guide you through implementing a robust logging system using Python's built-in `logging` module and decorator patterns. By the end, you'll be able to create reusable logging decorators that can be applied across your codebase.
 
-## Why Use Decorators?
-Decorators wrap functions to add logging without cluttering their core logic. They can log when a function runs, what inputs it receives, and any errors it encounters. This is especially useful in large codebases.
+### What You'll Learn
+- How to use Python's `logging` module effectively
+- How to create and apply logging decorators
+- How to configure logging for different environments
+- Best practices for handling failures with logs
 
-## Basic Logging Decorator
-A simple decorator can log errors to help with debugging. Below is an example that logs exceptions:
+### Prerequisites
+- Basic knowledge of Python
+- Understanding of function decorators
+- Python 3.6+ installed on your system
+
+## Step 1: Understanding the Basics of Python Logging
+
+The [`logging` module](https://docs.python.org/3/library/logging.html) is part of Python's standard library and provides a flexible framework for emitting log messages. Before diving into decorators, let's understand why professional developers prefer `logging` over simple `print` statements:
+
+- **Log Levels**: Different severity levels (`DEBUG`, `INFO`, `WARNING`, `ERROR`, `CRITICAL`)
+- **Configurability**: Can be configured to output to different destinations (console, files, network)
+- **Formatting**: Customizable message formats including timestamps and context information
+- **Thread Safety**: Safe for use in multi-threaded applications
+
+## Step 2: Creating a Basic Logging Decorator
+
+Let's start by creating a simple decorator that logs exceptions. This decorator will wrap any function and log errors that occur during execution:
 
 ```python
 import logging
@@ -54,8 +66,48 @@ ERROR:root:An error occurred in divide: division by zero
 
 This logs errors like "division by zero" to help identify issues quickly.
 
-## Advanced Logging Decorator
-For more detailed logging, decorators can track function arguments and use named loggers for better organization:
+## Step 3: Trying it Yourself
+
+### Step 3.1: Create a new Python file named `basic_logging.py`
+
+Create a new Python file named `basic_logging.py` to test the `log_error` decorator.
+
+### Step 3.2: Copy the decorator code into your file
+
+Copy the `log_error` decorator code into your `basic_logging.py` file.
+
+### Step 3.3: Add a test function that might cause an error
+
+Add a test function that might cause an error, such as the `divide` function shown earlier.
+
+```python
+@log_error
+def divide(a, b):
+    return a / b
+
+try:
+    divide(10, 0)
+except ZeroDivisionError as e:
+    print(f"Caught exception: {e}")
+```
+
+### Step 3.4: Run the script and check the output
+
+Run the script and check the output to see the error logged.
+
+**Output (in logs):**
+```
+ERROR:root:An error occurred in divide: division by zero
+```
+
+The error is automatically logged, showing exactly what happened, while still allowing you to handle the exception normally.
+
+## Step 4: Creating an Advanced Logging Decorator
+
+Next, let's create a more sophisticated decorator that:
+- Logs function calls with arguments
+- Uses named loggers for better organization
+- Allows for customization
 
 ```python
 import logging
@@ -96,8 +148,13 @@ multiply(4, 5)
 Output (in console):
 2025-05-25 06:17:00 [DEBUG] my_module: Calling multiply with args: (4, 5), kwargs: {}
 
-## Configuring Logging
-Centralized logging configuration ensures consistency across large applications. Below is an example using a dictionary configuration:
+## Step 5: Setting Up Centralized Logging Configuration
+
+As your application grows, you'll want to centralize logging configuration for consistency across modules. In this step, we'll set up a reusable configuration system.
+
+### Step 5.1: Create a configuration file
+
+Create a new file named `logging_config.py` with the following dictionary-based configuration:
 
 ```python
 import logging.config
@@ -147,53 +204,98 @@ LOGGING_CONFIG = {
 logging.config.dictConfig(LOGGING_CONFIG)
 ```
 
-You can also configure logging using a file:
+### Step 5.2: Apply the configuration
+
+Add this code to your `logging_config.py` file to apply the configuration:
+
+```python
+def setup_logging():
+    logging.config.dictConfig(LOGGING_CONFIG)
+    logging.info("Logging configured successfully")
+
+# Call this function at the start of your application
+if __name__ == "__main__":
+    setup_logging()
+```
+
+### Step 5.3: Alternative - File-based configuration
+
+For larger projects, you might prefer to store your configuration in a separate file:
 
 ```python
 import logging.config
 
-# Load configuration from a file
-logging.config.fileConfig('logging.conf', disable_existing_loggers=False)
+def setup_file_based_logging():
+    # Load configuration from a file
+    logging.config.fileConfig('logging.conf', disable_existing_loggers=False)
+    logging.info("Logging configured from file successfully")
 ```
 
-This setup directs logs to the console and a file, with JSON formatting and log rotation for scalability.
+This centralized approach ensures consistent logging across all modules in your application.
 
-## Handling Failures with Logs
-When a failure occurs, logs are critical for diagnosis. Here's how to use them effectively:
+## Step 6: Troubleshooting with Logs
 
-### 1. Locate Log Files
-- For FileHandler, check the specified file (e.g., `application.log`)
-- In production, access logs via centralized platforms like [ELK Stack](https://www.elastic.co/what-is/elk-stack) or [Splunk](https://www.splunk.com/)
+One of the most valuable aspects of logging is troubleshooting issues in production. Let's walk through the process of using logs to diagnose problems.
 
-### 2. Read and Interpret Logs
-- Filter for `ERROR` or `CRITICAL` messages to identify failures
-- Use timestamps to sequence events leading to the issue
-- Review stack traces for detailed exception information
+### Step 6.1: Locate your log files
 
-### 3. Debugging with Logs
-- Use logged function calls and arguments to reproduce the failure
-- Identify patterns or recurring errors indicating systemic issues
-- Parse structured logs (e.g., JSON) to analyze trends programmatically
+When an issue occurs, first locate your log files:
 
-### 4. Real-Time Log Monitoring
-- Use tools like ELK Stack, Splunk, or [SigNoz](https://signoz.io/) for live monitoring
-- Configure alerts for critical log levels to receive immediate notifications
+- **For local development**: Check the file specified in your handler (e.g., `application.log`)
+- **For production systems**: Access logs via centralized platforms like [ELK Stack](https://www.elastic.co/what-is/elk-stack) or [Splunk](https://www.splunk.com/)
 
-### Example: Debugging a Failure
-Consider a ZeroDivisionError. The log might show:
+### Step 6.2: Filter logs to find errors
+
+Use these techniques to identify issues:
+
+- Filter for `ERROR` or `CRITICAL` level messages to find serious problems
+- Use timestamps to trace the sequence of events leading to the failure
+- Examine stack traces for detailed exception information
+
+### Step 6.3: Analyze the problem
+
+Once you've identified error messages:
+
+- Use logged function calls and arguments to reproduce the issue
+- Look for patterns or recurring errors that might indicate systemic problems
+- Use structured logs (JSON format) to programmatically analyze trends
+
+### Step 6.4: Set up real-time monitoring
+
+For critical applications, implement real-time log monitoring:
+
+- Configure tools like ELK Stack, Splunk, or [SigNoz](https://signoz.io/) for live monitoring
+- Set up alerts for critical log levels to receive immediate notifications
+
+### Step 6.5: Practice with a simulated error
+
+Let's practice troubleshooting by analyzing logs from a division by zero error:
 
 ```
 2025-05-25 06:17:00 [DEBUG] my_module: Calling divide with args: (10, 0), kwargs: {}
 2025-05-25 06:17:00 [ERROR] my_module: An error occurred in divide: division by zero
 ```
 
-This indicates `divide(10, 0)` caused the error, enabling quick identification and resolution.
+From these logs, we can identify:
+- The function that failed (`divide`)
+- The problematic input values (`10` and `0`)
+- The exact error (`division by zero`)
+- The time when it occurred
 
-## Contextual Logging
+This information allows you to quickly identify and fix the issue (in this case, adding validation to prevent division by zero).
 
-Adding context to logs can provide valuable information without cluttering your code. Python's logging module supports this with the `extra` parameter:
+## Step 7: Adding Context to Your Logs
+
+To make logs more useful, you can add additional context information. In this step, we'll create a decorator that adds contextual data to each log message.
+
+### Step 7.1: Create a contextual logging decorator
+
+Create a new file named `contextual_logging.py` with this decorator that adds context to log messages:
 
 ```python
+import logging
+import functools
+
 def log_with_context(logger=None):
     if logger is None:
         logger = logging.getLogger(__name__)
@@ -222,9 +324,39 @@ def log_with_context(logger=None):
     return decorator
 ```
 
-## Thread Safety in Logging
+### Step 7.2: Try out contextual logging
 
-Python's logging module is thread-safe, but you should be aware of certain considerations when working with multi-threaded applications:
+Test the decorator with a simple function that uses the context:
+
+```python
+# Configure the logger
+logging.basicConfig(
+    level=logging.INFO,
+    format='%(asctime)s [%(levelname)s] %(name)s: [%(function)s] [User: %(user_id)s] %(message)s'
+)
+
+# Apply the decorator
+@log_with_context()
+def process_user_data(data, user_id="unknown"):
+    # Some processing
+    return data
+
+# Call the function
+process_user_data({"name": "John"}, user_id="user123")
+```
+
+You'll see output like:
+```
+2025-05-25 06:30:00 [INFO] __main__: [process_user_data] [User: user123] Function executed successfully
+```
+
+## Step 8: Handling Thread Safety in Logging
+
+When working with multi-threaded applications, you need to ensure your logging is thread-safe.
+
+### Step 8.1: Use thread-local storage for request-specific data
+
+Create a file named `thread_safe_logging.py`:
 
 ```python
 import logging
@@ -242,65 +374,176 @@ class RequestContextFilter(logging.Filter):
         else:
             record.request_id = 'no-request-id'
         return True
-
-# Add the filter to your logger
-logger = logging.getLogger('app')
-logger.addFilter(RequestContextFilter())
 ```
 
-## Best Practices
+### Step 8.2: Configure your logger with the filter
 
-- **Use Named Loggers**: Organize logs by module for better tracking (`logging.getLogger(__name__)`).
-- **Set Appropriate Levels**: Use `DEBUG` for development, `INFO` or higher for production.
-- **Avoid Sensitive Data**: Never log passwords, API keys, or personal information.
-  ```python
-  # WRONG
-  logger.info(f"User authenticated with password: {password}")
-  
-  # RIGHT
-  logger.info(f"User {username} authenticated successfully")
-  ```
-- **Use Log Rotation**: Manage file sizes with `RotatingFileHandler` or `TimedRotatingFileHandler`.
-- **Centralize Logs**: Aggregate logs using tools like ELK Stack or SigNoz for distributed systems.
-- **Use Structured Logging**: JSON format enables better searching and analysis.
-- **Include Correlation IDs**: Add request IDs to trace requests across microservices.
+```python
+# Setup logging with the filter
+logger = logging.getLogger('app')
+logger.setLevel(logging.INFO)
 
-## Integration with Web Frameworks
+# Add the custom filter
+request_filter = RequestContextFilter()
+logger.addFilter(request_filter)
 
-### Flask Example
+# Add a handler
+handler = logging.StreamHandler()
+formatter = logging.Formatter('%(asctime)s [%(levelname)s] [%(request_id)s] %(message)s')
+handler.setFormatter(formatter)
+logger.addHandler(handler)
+```
+
+### Step 8.3: Use in a multi-threaded context
+
+```python
+def process_request(request_number):
+    # Set request ID in thread-local storage
+    thread_local.request_id = f"req-{request_number}"
+    
+    logger.info(f"Processing request {request_number}")
+    # Processing logic here
+    logger.info(f"Completed request {request_number}")
+
+# Create threads to simulate concurrent requests
+import concurrent.futures
+
+with concurrent.futures.ThreadPoolExecutor(max_workers=3) as executor:
+    executor.map(process_request, range(5))
+```
+
+## Step 9: Implementing Best Practices
+
+Let's create a checklist of best practices to follow in your logging implementation:
+
+### Step 9.1: Use named loggers
+
+```python
+# Instead of using the root logger
+logging.info("Message")  # Not recommended for larger applications
+
+# Use a named logger specific to the module
+logger = logging.getLogger(__name__)  # Best practice
+logger.info("Message")
+```
+
+### Step 9.2: Set appropriate log levels
+
+```python
+# Development environment
+logger.setLevel(logging.DEBUG)  # Capture detailed diagnostic information
+
+# Production environment
+logger.setLevel(logging.INFO)  # Only capture significant events
+```
+
+### Step 9.3: Protect sensitive data
+
+```python
+# WRONG - exposing sensitive information
+logger.info(f"User authenticated with password: {password}")  
+
+# RIGHT - logging the event without exposing secrets
+logger.info(f"User {username} authenticated successfully")
+```
+
+### Step 9.4: Implement log rotation
+
+```python
+from logging.handlers import RotatingFileHandler
+
+handler = RotatingFileHandler(
+    'application.log',
+    maxBytes=10*1024*1024,  # 10MB
+    backupCount=5            # Keep 5 backup files
+)
+logger.addHandler(handler)
+```
+
+## Step 10: Integration with Web Frameworks
+
+Logging becomes even more powerful when integrated with web frameworks.
+
+### Step 10.1: Flask integration
+
+Create a file named `flask_logging_example.py`:
 
 ```python
 from flask import Flask, request, g
 import logging
 import uuid
+import functools
 
 app = Flask(__name__)
 
+# Setup logging
+logger = logging.getLogger('flask_app')
+logger.setLevel(logging.INFO)
+handler = logging.StreamHandler()
+formatter = logging.Formatter('%(asctime)s [%(levelname)s] [%(request_id)s] %(message)s')
+handler.setFormatter(formatter)
+logger.addHandler(handler)
+
+# Create a logging decorator
+def log_route(f):
+    @functools.wraps(f)
+    def decorated_function(*args, **kwargs):
+        logger.info(f"Route {request.path} called")
+        return f(*args, **kwargs)
+    return decorated_function
+
+# Add request ID middleware
 @app.before_request
 def before_request():
     g.request_id = request.headers.get('X-Request-ID', str(uuid.uuid4()))
+    # Make request ID available to logger
+    logger.filter(lambda record: setattr(record, 'request_id', g.request_id) or True)
 
-@log()
-def some_view_function():
-    # This function will be logged with the request ID context
-    return "Response"
+# Apply decorator to routes
+@app.route('/')
+@log_route
+def index():
+    logger.info("Processing index request")
+    return "Hello World"
+
+if __name__ == '__main__':
+    app.run(debug=True)
 ```
 
-### Django Example
+### Step 10.2: Django integration
+
+For Django applications, create a file named `django_logging_middleware.py`:
 
 ```python
 # middleware.py
+import logging
 import uuid
 
-class RequestIDMiddleware:
+logger = logging.getLogger('django_app')
+
+class RequestLoggingMiddleware:
     def __init__(self, get_response):
         self.get_response = get_response
 
     def __call__(self, request):
+        # Generate or extract request ID
         request_id = request.headers.get('X-Request-ID', str(uuid.uuid4()))
         request.request_id = request_id
+        
+        # Log the request
+        logger.info(f"Request {request.method} {request.path}", 
+                   extra={'request_id': request_id})
+        
+        # Process the request
         response = self.get_response(request)
+        
+        # Add request ID to response
         response['X-Request-ID'] = request_id
+        
+        # Log the response
+        logger.info(f"Response status: {response.status_code}",
+                   extra={'request_id': request_id})
+        
         return response
 ```
 
@@ -364,32 +607,50 @@ def log(logger=None):
     return decorator
 ```
 
-### Configure a named logger
+### Step 4.1: Configure a named logger
+
+Unlike our basic example that used the root logger, it's better practice to use named loggers. Create a named logger and configure it:
 
 ```python
+# Create a file named advanced_logging.py
+import logging
+import functools
+
+# First define the decorator (code above)
+
+# Then configure a named logger
 logger = logging.getLogger('my_module')
-logger.setLevel(logging.DEBUG)
-handler = logging.StreamHandler()
-formatter = logging.Formatter('%(asctime)s [%(levelname)s] %(name)s: %(message)s')
+logger.setLevel(logging.DEBUG)  # Set the minimum level to capture
+handler = logging.StreamHandler()  # Output to console
+formatter = logging.Formatter('%(asctime)s [%(levelname)s] %(name)s: %(message)s')  # Format with timestamp
 handler.setFormatter(formatter)
 logger.addHandler(handler)
 ```
 
-### Example usage
+### Step 4.2: Apply the decorator to a function
+
+Now apply the decorator to a function and test it:
 
 ```python
-@log(logger=logger)
+@log(logger=logger)  # Pass our configured logger to the decorator
 def multiply(a, b):
     return a * b
-multiply(4, 5)
+
+result = multiply(4, 5)
+print(f"Result: {result}")
 ```
+
+### Step 4.3: Run and check the output
+
+When you run this code, you'll see detailed logging information:
 
 **Output (in console):**
 ```
 2025-05-25 06:17:00 [DEBUG] my_module: Calling multiply with args: (4, 5), kwargs: {}
+Result: 20
 ```
 
-This logs function calls at the DEBUG level and exceptions at the ERROR level, using a named logger.
+This advanced decorator logs both function calls with their arguments (at DEBUG level) and any exceptions (at ERROR level), providing more context for debugging.
 
 ## Configuring Logging for Scalability
 Centralized configuration ensures consistency. Below is an example using logging.config.dictConfig:
@@ -591,21 +852,31 @@ This approach provides several benefits:
 
 Handling failures with logs ensures quick diagnosis and resolution, making this approach ideal for large-scale applications.
 
+## Summary
+This tutorial has covered the key aspects of Python logging with decorators, including:
+
+*   Creating a logging decorator to log function calls and exceptions
+*   Configuring logging for scalability using `logging.config.dictConfig`
+*   Handling failures with logs for effective debugging
+*   Best practices for logging in applications
+*   Advanced considerations, such as custom handlers, class methods, and asynchronous logging
+
+By following this tutorial, you've gained the knowledge to implement professional-grade logging in your Python applications using decorators.
+
 ## References
 
-- [Python Official Documentation: Logging](https://docs.python.org/3/library/logging.html)
-- [Python Logging Cookbook](https://docs.python.org/3/howto/logging-cookbook.html)
-- [Python Logging Best Practices by Last9](https://last9.io/blog/python-logging-best-practices/)
-- [10 Best Practices for Logging in Python by Better Stack](https://betterstack.com/community/articles/10-best-practices-for-logging-in-python/)
-- [Python Logging Best Practices by SigNoz](https://signoz.io/blog/python-logging-best-practices/)
-- [12 Python Logging Best Practices by Middleware](https://middleware.io/blog/12-python-logging-best-practices/)
-- [A Better Way to Logging in Python by Ankitbko](https://ankitbko.github.io/blog/2014/07/15/better-logging-in-python/)
-- [Create an Exception Logging Decorator by GeeksforGeeks](https://www.geeksforgeeks.org/create-an-exception-logging-decorator-in-python/)
-- [Python Logging Formats by Datadog](https://docs.datadoghq.com/logs/log_collection/python/?tab=logging)
-- [Best Practices for Logging in Python by Loggly](https://loggly.com/blog/best-practices-for-logging-in-python/)
-- [Best Practices for Logging at Scale by Loggly](https://loggly.com/blog/best-practices-for-logging-at-scale/)
-- [Advanced Python Logging by Uptrace](https://uptrace.dev/opentelemetry/logs/python-logging.html)
-- [ELK Stack Overview by Elastic](https://www.elastic.co/what-is/elk-stack)
-- [Splunk Platform Overview](https://www.splunk.com/en_us/solutions/splunk-platform.html)
-- [SigNoz Open-Source Observability](https://signoz.io/)
-- [OpenTelemetry for Python](https://opentelemetry.io/docs/instrumentation/python/)
+*   [Python Official Documentation: Logging](https://docs.python.org/3/library/logging.html)
+*   [Python Logging Cookbook](https://docs.python.org/3/howto/logging-cookbook.html)
+*   [Python Logging Best Practices by Last9](https://last9.io/blog/python-logging-best-practices/)
+*   [Best Practices for Logging in Python by Better Stack](https://betterstack.com/community/guides/logging/python/)
+*   [Python Logging Best Practices by SigNoz](https://signoz.io/blog/python-logging-best-practices/)
+*   [Python Logging Best Practices by Middleware](https://middleware.io/blog/python-logging-best-practices/)
+*   [Create an Exception Logging Decorator by GeeksforGeeks](https://www.geeksforgeeks.org/create-an-exception-logging-decorator-in-python/)
+*   [Python Logging with Datadog](https://docs.datadoghq.com/logs/log_collection/python/)
+*   [Structured Logging in Python](https://www.loggly.com/use-cases/json-logging-in-python/)
+*   [Logging at Scale by Loggly](https://www.loggly.com/blog/logging-in-the-cloud-at-scale/)
+*   [Advanced Python Logging by Uptrace](https://uptrace.dev/opentelemetry/python-logging.html)
+*   [ELK Stack Overview by Elastic](https://www.elastic.co/what-is/elk-stack)
+*   [Splunk Platform Overview](https://www.splunk.com/en_us/platform.html)
+*   [SigNoz Open-Source Observability](https://signoz.io/)
+*   [OpenTelemetry for Python](https://opentelemetry.io/docs/instrumentation/python/)
