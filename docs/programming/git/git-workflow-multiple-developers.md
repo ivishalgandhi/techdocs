@@ -1,6 +1,6 @@
 ---
-title: Git Workflow for Multiple Developers: Incorporating Changes from Another Branch
-description: A step-by-step guide to managing Git repositories when multiple developers work on different features
+title: "Git Workflow for Multiple Developers: Incorporating Changes from Another Branch"
+description: "A step-by-step guide to managing Git repositories when multiple developers work on different features"
 sidebar_position: 2
 ---
 
