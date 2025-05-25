@@ -38,31 +38,53 @@ Let's start by creating a simple decorator that logs exceptions. This decorator 
 import logging
 import functools
 
+# Configure logging with filename and line number
+logging.basicConfig(format='%(asctime)s - %(name)s - %(levelname)s - %(module)s - %(filename)s:%(lineno)d - %(message)s')
+
+# Decorator to log errors with function name and module
 def log_error(func):
     @functools.wraps(func)
     def wrapper(*args, **kwargs):
         try:
             return func(*args, **kwargs)
         except Exception as e:
-            logging.error(f"An error occurred in {func.__name__}: {str(e)}")
-            raise
-    return wrapper
+            logging.error(f"An error occurred in function {func.__name__} in module {func.__module__} : {repr(e)}") #repr(e) gives a detailed representation of the exception
+            raise  # Without this, exceptions would be silently caught
+    return wrapper  # Without this, the decorator wouldn't work
 
-# Example usage
+# Example showing why raise is important
 @log_error
 def divide(a, b):
     return a / b
 
 try:
-    divide(10, 0)
+    result = divide(10, 0)  # This raises ZeroDivisionError
 except ZeroDivisionError as e:
-    print(f"Caught exception: {e}")
+    # Without raise, this except block would never execute
+    logging.error(f"Caught exception: {e}")
 ```
 
 **Output (in logs):**
 ```
-ERROR:root:An error occurred in divide: division by zero
+2025-05-25 18:50:23,103 - root - ERROR - basic-logging-decorator - basic-logging-decorator.py:14 - An error occurred in function divide in module __main__ : ZeroDivisionError('division by zero')
+2025-05-25 18:50:23,103 - root - ERROR - basic-logging-decorator - basic-logging-decorator.py:28 - Caught exception: division by zero
 ```
+
+In the example above, the log output is going to the console (stdout) because we haven't configured any specific log handlers. The Python `logging` module, by default:
+
+1. Creates a root logger (shown as "root" in the log output)
+2. Uses a basic `StreamHandler` that sends logs to the console
+3. Sets the default level to `WARNING`, which is why our `ERROR` message appears
+
+If you run this code, you'll see both the log message and the print statement in your console:
+```
+2025-05-25 18:50:23,103 - root - ERROR - basic-logging-decorator - basic-logging-decorator.py:14 - An error occurred in function divide in module __main__ : ZeroDivisionError('division by zero')
+2025-05-25 18:50:23,103 - root - ERROR - basic-logging-decorator - basic-logging-decorator.py:28 - Caught exception: division by zero
+```
+
+To verify these logs are working:
+- Look for the log message in your console/terminal
+- For larger applications, you might want to redirect logs to a file (we'll cover this in Step 5)
 
 This logs errors like "division by zero" to help identify issues quickly.
 
@@ -88,7 +110,7 @@ def divide(a, b):
 try:
     divide(10, 0)
 except ZeroDivisionError as e:
-    print(f"Caught exception: {e}")
+    logging.error(f"Caught exception: {e}")
 ```
 
 ### Step 3.4: Run the script and check the output
@@ -97,7 +119,8 @@ Run the script and check the output to see the error logged.
 
 **Output (in logs):**
 ```
-ERROR:root:An error occurred in divide: division by zero
+2025-05-25 18:50:23,103 - root - ERROR - basic-logging-decorator - basic-logging-decorator.py:14 - An error occurred in function divide in module __main__ : ZeroDivisionError('division by zero')
+2025-05-25 18:50:23,103 - root - ERROR - basic-logging-decorator - basic-logging-decorator.py:28 - Caught exception: division by zero
 ```
 
 The error is automatically logged, showing exactly what happened, while still allowing you to handle the exception normally.
@@ -485,7 +508,7 @@ app = Flask(__name__)
 logger = logging.getLogger('flask_app')
 logger.setLevel(logging.INFO)
 handler = logging.StreamHandler()
-formatter = logging.Formatter('%(asctime)s [%(levelname)s] [%(request_id)s] %(message)s')
+formatter = logging.Formatter('%(asctime)s [%(levelname)s] %(name)s: %(message)s')
 handler.setFormatter(formatter)
 logger.addHandler(handler)
 
@@ -901,6 +924,7 @@ def trace_request(logger=None):
                            extra={"trace_id": trace_id})
                 
                 try:
+                    # Execute the function
                     result = func(*args, **kwargs)
                     span.set_status(trace.StatusCode.OK)
                     return result
