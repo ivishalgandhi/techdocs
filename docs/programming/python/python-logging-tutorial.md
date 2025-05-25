@@ -302,7 +302,7 @@ import functools
 def log_with_context(logger=None):
     if logger is None:
         logger = logging.getLogger(__name__)
-        
+
     def decorator(func):
         @functools.wraps(func)
         def wrapper(*args, **kwargs):
@@ -312,10 +312,10 @@ def log_with_context(logger=None):
                 'module': func.__module__,
                 'user_id': kwargs.get('user_id', 'anonymous')
             }
-            
+
             # Create a logger adapter with extra context
             adapter = logging.LoggerAdapter(logger, context)
-            
+
             try:
                 result = func(*args, **kwargs)
                 adapter.info(f"Function executed successfully")
@@ -580,6 +580,7 @@ def setup_container_logging():
                 "message": record.getMessage(),
                 "logger": record.name
             }
+            
             # Add exception info if present
             if record.exc_info:
                 log_record["exception"] = self.formatException(record.exc_info)
@@ -839,6 +840,24 @@ spec:
           requests:
             memory: "128Mi"
             cpu: "250m"
+        volumeMounts:
+        - name: log-volume
+          mountPath: /app/logs
+      # Sidecar container for log forwarding
+      - name: log-forwarder
+        image: fluent/fluent-bit:latest
+        volumeMounts:
+        - name: log-volume
+          mountPath: /logs
+          readOnly: true
+        - name: fluent-bit-config
+          mountPath: /fluent-bit/etc/
+      volumes:
+      - name: log-volume
+        emptyDir: {}
+      - name: fluent-bit-config
+        configMap:
+          name: fluent-bit-config
 ```
 
 ## Step 13: Distributed Tracing with Logging
@@ -1108,155 +1127,124 @@ data:
 
 The ELK Stack (Elasticsearch, Logstash, Kibana) is one of the most popular logging solutions for distributed applications. In this step, we'll set up an ELK stack using Docker and integrate it with our Python application.
 
-### Step 15.1: Create a Docker Compose file for ELK
+### Step 15.1: Create a Docker Compose configuration
 
-Create a file named `docker-compose-elk.yml` with the following content:
+Create a directory for your ELK stack configuration:
+
+```bash
+mkdir -p elk-stack/logstash/pipeline
+cd elk-stack
+```
+
+Create a `docker-compose.yml` file with the following content:
 
 ```yaml
 version: '3.8'
 
 services:
-  # Elasticsearch: Stores all the logs
   elasticsearch:
-    image: docker.elastic.co/elasticsearch/elasticsearch:8.8.0
+    image: docker.elastic.co/elasticsearch/elasticsearch:7.14.0
     container_name: elasticsearch
     environment:
-      - node.name=elasticsearch
-      - cluster.name=es-docker-cluster
-      - bootstrap.memory_lock=true
-      - "ES_JAVA_OPTS=-Xms512m -Xmx512m"
       - discovery.type=single-node
-      - xpack.security.enabled=false
+      - "ES_JAVA_OPTS=-Xms512m -Xmx512m"
     ulimits:
       memlock:
         soft: -1
         hard: -1
+    ports:
+      - "9200:9200"
+    networks:
+      - elk
     volumes:
       - elasticsearch-data:/usr/share/elasticsearch/data
-    ports:
-      - 9200:9200
-    networks:
-      - elk-network
     healthcheck:
-      test: ["CMD-SHELL", "curl -s http://localhost:9200 || exit 1"]
+      test: ["CMD", "curl", "-f", "http://localhost:9200"]
       interval: 30s
       timeout: 10s
-      retries: 3
+      retries: 5
 
-  # Logstash: Processes logs before sending to Elasticsearch
   logstash:
-    image: docker.elastic.co/logstash/logstash:8.8.0
+    image: docker.elastic.co/logstash/logstash:7.14.0
     container_name: logstash
-    volumes:
-      - ./logstash/pipeline:/usr/share/logstash/pipeline:ro
     ports:
-      - 5044:5044
-      - 5000:5000/tcp
-      - 5000:5000/udp
-      - 9600:9600
-    environment:
-      LS_JAVA_OPTS: "-Xmx256m -Xms256m"
+      - "5000:5000/tcp"
+      - "5000:5000/udp"
+      - "9600:9600"
     networks:
-      - elk-network
+      - elk
+    volumes:
+      - ./logstash/pipeline:/usr/share/logstash/pipeline
     depends_on:
       - elasticsearch
 
-  # Kibana: Visualizes the logs
   kibana:
-    image: docker.elastic.co/kibana/kibana:8.8.0
+    image: docker.elastic.co/kibana/kibana:7.14.0
     container_name: kibana
     ports:
-      - 5601:5601
-    environment:
-      ELASTICSEARCH_URL: http://elasticsearch:9200
-      ELASTICSEARCH_HOSTS: http://elasticsearch:9200
+      - "5601:5601"
     networks:
-      - elk-network
+      - elk
     depends_on:
       - elasticsearch
 
 networks:
-  elk-network:
+  elk:
     driver: bridge
 
 volumes:
   elasticsearch-data:
+    driver: local
 ```
 
-### Step 15.2: Create Logstash configuration
+### Step 15.2: Why Not Use Relational Databases for Logging?
 
-Create a directory and configuration file for Logstash:
+While relational databases like SQL Server, MySQL or PostgreSQL might seem like a convenient choice for logging (especially if you're already using them in your application), they're actually a poor fit for log management in production environments. Here's why specialized solutions like ELK Stack, ClickHouse, or SigNoz are significantly better choices:
 
-```bash
-mkdir -p logstash/pipeline
-touch logstash/pipeline/logstash.conf
-```
+#### Performance Limitations of Relational Databases for Logging
 
-Add the following content to `logstash/pipeline/logstash.conf`:
+1. **Write Throughput**: Logs generate massive amounts of data at high velocity. A busy application can produce millions of log events daily. Relational databases with their ACID properties prioritize consistency over write performance, creating a bottleneck.
 
-```
-input {
-  # TCP input for direct logging
-  tcp {
-    port => 5000
-    codec => json
-  }
-  
-  # UDP input for syslog
-  udp {
-    port => 5000
-    codec => json
-  }
-  
-  # HTTP input for RESTful logging
-  http {
-    port => 8080
-    codec => json
-  }
-}
+2. **Schema Constraints**: Relational databases require predefined schemas. Log data often has variable structure, especially when coming from multiple services. Elasticsearch and ClickHouse support schema-on-read, making them more flexible for diverse log formats.
 
-filter {
-  if ![timestamp] {
-    mutate {
-      add_field => { "timestamp" => "%{@timestamp}" }
-    }
-  }
-  
-  # Parse timestamps
-  date {
-    match => [ "timestamp", "ISO8601", "yyyy-MM-dd HH:mm:ss.SSS" ]
-    target => "@timestamp"
-  }
-  
-  # Add kubernetes metadata if available
-  if [kubernetes] {
-    mutate {
-      add_field => { "[@metadata][index_suffix]" => "k8s" }
-    }
-  } else {
-    mutate {
-      add_field => { "[@metadata][index_suffix]" => "app" }
-    }
-  }
-}
+3. **Query Performance**: SQL queries on large log tables become progressively slower. Specialized solutions like Elasticsearch use inverted indices optimized for log-based search patterns.
 
-output {
-  elasticsearch {
-    hosts => ["elasticsearch:9200"]
-    index => "python-logs-%{[@metadata][index_suffix]}-%{+YYYY.MM.dd}"
-  }
-  
-  # For debugging
-  stdout { codec => rubydebug }
-}
-```
+4. **Scaling Issues**: Horizontal scaling (sharding) is complex with traditional RDBMSs. Log volumes grow continuously, requiring seamless scaling capabilities that solutions like Elasticsearch provide natively.
+
+#### Storage and Operational Concerns
+
+1. **Cost Efficiency**: Storing billions of log records in a relational database requires expensive infrastructure. Solutions like ClickHouse can achieve 10-100x better compression ratios for log data.
+
+2. **Data Rotation**: Log data typically has a lifecycle (e.g., keeping 30 days of logs). Specialized solutions provide built-in features for index rotation and data archiving that are cumbersome to implement in relational databases.
+
+3. **Operational Overhead**: Running a large-scale RDBMS requires significant operational expertise. Log-optimized solutions are designed specifically for high-volume append-only workloads.
+
+#### Specialized Features for Log Analysis
+
+1. **Full-text Search**: Solutions like Elasticsearch provide powerful full-text search capabilities essential for log analysis.
+
+2. **Time-Series Optimization**: Logs are time-series data. ClickHouse and Elasticsearch are optimized for time-based queries common in log analysis.
+
+3. **Visualization & Analysis**: The "K" in ELK (Kibana) and SigNoz's UI provide built-in visualization tools designed specifically for log data.
+
+4. **Structured Data Support**: Modern logging systems output structured JSON logs. Document-oriented databases like Elasticsearch handle this naturally.
+
+#### When Relational Databases Might Be Acceptable (Limited Cases)
+
+Relational databases might be acceptable only for:
+- Very small applications with minimal log volume
+- Temporary development environments
+- Cases where specific compliance requirements mandate ACID properties
+- Applications where logs need to be joined with relational application data
+
+Even in these cases, consider directing only a filtered subset of critical logs to a relational database while sending complete logs to a specialized solution.
 
 ### Step 15.3: Start the ELK Stack
 
 Start the ELK stack with Docker Compose:
 
 ```bash
-docker-compose -f docker-compose-elk.yml up -d
+docker-compose up -d
 ```
 
 ### Step 15.4: Configure Python logging to send logs to ELK
