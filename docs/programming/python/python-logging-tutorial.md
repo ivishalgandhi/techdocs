@@ -142,6 +142,8 @@ Next, let's create a more sophisticated decorator that:
 import logging
 import functools
 
+logging.basicConfig(format='%(asctime)s - %(name)s - %(levelname)s - %(module)s - %(filename)s:%(lineno)d - %(message)s')
+
 def log(logger=None):
     if logger is None:
         logger = logging.getLogger(__name__)
@@ -149,6 +151,23 @@ def log(logger=None):
     def decorator(func):
         @functools.wraps(func)
         def wrapper(*args, **kwargs):
+            """
+            A decorator function that logs debug information when the wrapped function is called
+            and logs error information if an exception occurs.
+
+            Args:
+                *args: Variable length argument list of the wrapped function
+                **kwargs: Arbitrary keyword arguments of the wrapped function
+                         # kwargs allows passing key-value pair arguments to the function
+                         # Example: function(name="John", age=25)
+
+            Returns:
+                The result of the wrapped function execution
+
+            Raises:
+                Exception: Re-raises any exception that occurs in the wrapped function
+                          after logging the error
+            """
             logger.debug(f"Calling {func.__name__} with args: {args}, kwargs: {kwargs}")
             try:
                 result = func(*args, **kwargs)
@@ -161,21 +180,31 @@ def log(logger=None):
 
 # Configure a named logger
 logger = logging.getLogger('my_module')
-logger.setLevel(logging.DEBUG)  # Set the minimum level to capture
+logger.setLevel(logging.DEBUG) # Set the logger to debug level for both debug and error messages
+
+# Create a console handler to output logs to the console
+
 handler = logging.StreamHandler()  # Output to console
 formatter = logging.Formatter('%(asctime)s [%(levelname)s] %(name)s: %(message)s')  # Format with timestamp
 handler.setFormatter(formatter)
 logger.addHandler(handler)
 
-# Example usage
 @log(logger=logger)
-def multiply(a, b):
-    return a * b
+def divide(a, b):
+    return a / b
+try:
+    divide(4, 0)
+except ZeroDivisionError as e:
+    logger.error(f"Caught an exception: {e}")
 
-multiply(4, 5)
 
-Output (in console):
-2025-05-25 06:17:00 [DEBUG] my_module: Calling multiply with args: (4, 5), kwargs: {}
+```
+
+```bash
+2025-05-26 06:24:51,419 [ERROR] my_module: An error occurred in divide: division by zero
+2025-05-26 06:24:51,419 - my_module - ERROR - advance_logging - advance_logging.py:18 - An error occurred in divide: division by zero
+2025-05-26 06:24:51,419 [ERROR] my_module: Caught an exception: division by zero
+2025-05-26 06:24:51,419 - my_module - ERROR - advance_logging - advance_logging.py:37 - Caught an exception: division by zero
 ```
 
 This advanced decorator logs both function calls with their arguments (at DEBUG level) and any exceptions (at ERROR level), providing more context for debugging.
