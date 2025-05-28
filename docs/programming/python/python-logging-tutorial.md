@@ -180,6 +180,358 @@ def log(logger=None):
 
 # Configure a named logger
 logger = logging.getLogger('my_module')
+
+## Step 4.5: Stacking Multiple Decorators
+
+One powerful feature of Python decorators is the ability to apply multiple decorators to a single function, combining their behaviors. This technique, called decorator stacking or chaining, lets you modularize cross-cutting concerns and apply them selectively.
+
+### How Decorator Stacking Works
+
+When you stack multiple decorators, they are applied from bottom to top (or inside out). For example:
+
+```python
+@decorator1
+@decorator2
+@decorator3
+def my_function():
+    pass
+```
+
+This is equivalent to:
+
+```python
+my_function = decorator1(decorator2(decorator3(my_function)))
+```
+
+The innermost decorator (`decorator3`) is applied first, and the outermost decorator (`decorator1`) is applied last.
+
+### Example: Combining Logging and Timing Decorators
+
+Let's combine our logging decorator with a timer decorator to track both function calls and their execution time:
+
+```python
+import time
+import functools
+import logging
+
+logging.basicConfig(level=logging.INFO)
+logger = logging.getLogger('performance')
+
+# Timing decorator
+def timer(func):
+    @functools.wraps(func)
+    def wrapper(*args, **kwargs):
+        start_time = time.time()
+        result = func(*args, **kwargs)
+        end_time = time.time()
+        logger.info(f"{func.__name__} took {end_time - start_time:.4f} seconds to execute")
+        return result
+    return wrapper
+
+# Logging decorator
+def log_args(func):
+    @functools.wraps(func)
+    def wrapper(*args, **kwargs):
+        logger.info(f"{func.__name__} called with args: {args} and kwargs: {kwargs}")
+        return func(*args, **kwargs)
+    return wrapper
+
+# Apply both decorators
+@timer
+@log_args
+def process_data(x, y):
+    """Process data with artificial delay"""
+    time.sleep(1)  # Simulate processing time
+    return x + y
+
+# Test the function
+result = process_data(10, 20)
+print(f"Result: {result}")
+```
+
+Output:
+```
+INFO:performance:process_data called with args: (10, 20) and kwargs: {}
+INFO:performance:process_data took 1.0013 seconds to execute
+Result: 30
+```
+
+Notice the order of execution:
+1. First, the `log_args` decorator logs the function call and arguments
+2. Then, the actual function executes
+3. Finally, the `timer` decorator logs the execution time
+
+### Advanced Example: Adding Retry Logic
+
+For more robust applications, you might want to combine logging, timing, and retry mechanisms. Here's how you can stack all three decorators:
+
+```python
+import time
+import functools
+import logging
+import random
+
+logging.basicConfig(level=logging.INFO)
+logger = logging.getLogger('resilient_app')
+
+# Retry decorator
+def retry(attempts=3, delay=1):
+    def decorator(func):
+        @functools.wraps(func)
+        def wrapper(*args, **kwargs):
+            for attempt in range(1, attempts + 1):
+                try:
+                    return func(*args, **kwargs)
+                except Exception as e:
+                    logger.warning(f"Attempt {attempt}/{attempts} failed: {e}")
+                    if attempt < attempts:
+                        logger.info(f"Retrying in {delay} seconds...")
+                        time.sleep(delay)
+                    else:
+                        logger.error(f"All {attempts} attempts failed")
+                        raise
+        return wrapper
+    return decorator
+
+# Apply all three decorators
+@timer
+@retry(attempts=3, delay=2)
+@log_args
+def unstable_operation(success_rate=0.3):
+    """An operation that sometimes fails"""
+    logger.info("Executing unstable operation...")
+    if random.random() > success_rate:
+        raise ValueError("Random failure occurred")
+    return "Operation completed successfully"
+
+# Test the function
+try:
+    result = unstable_operation()
+    print(f"Result: {result}")
+except Exception as e:
+    print(f"Operation failed: {e}")
+```
+
+This example demonstrates how modular decorators can be combined to create robust, production-ready code with comprehensive logging, timing, and fault tolerance.
+
+### Tips for Effective Decorator Stacking
+
+1. **Consider the order carefully**: The execution flows from the innermost decorator to the outermost one
+2. **Use `functools.wraps`**: Always use `@functools.wraps(func)` in each decorator to preserve function metadata
+3. **Keep decorators focused**: Each decorator should have a single responsibility
+4. **Document the behavior**: Make it clear how the stacked decorators interact
+5. **Be mindful of performance**: Each decorator adds some overhead, so only use what you need
+
+By stacking decorators, you can create powerful, reusable patterns that keep your code DRY and maintainable while implementing important cross-cutting concerns like logging, timing, and error handling.
+
+## Step 4.6: Class-Based Decorators for Stateful Logging
+
+While function-based decorators are common, class-based decorators offer additional capabilities, particularly when you need to maintain state across function calls.
+
+### How Class-Based Decorators Work
+
+Class-based decorators leverage Python's `__init__` and `__call__` methods:
+- `__init__` receives the decorated function and initializes the decorator
+- `__call__` is invoked when the decorated function is called
+
+Here's how to implement a class-based decorator for logging that maintains state:
+
+```python
+import logging
+import functools
+
+class CountCalls:
+    """A decorator that counts and logs the number of times a function is called."""
+    
+    def __init__(self, func):
+        functools.update_wrapper(self, func)  # Preserve function metadata
+        self.func = func
+        self.counter = 0
+    
+    def __call__(self, *args, **kwargs):
+        self.counter += 1
+        logger.info(f"Call #{'{'}self.counter{'}'} to {'{'}self.func.__name__{'}'}")
+        return self.func(*args, **kwargs)
+    
+    def reset_counter(self):
+        """Reset the call counter."""
+        self.counter = 0
+        logger.info(f"Counter for {'{'}self.func.__name__{'}'}  has been reset")
+
+# Apply the class-based decorator
+@CountCalls
+def process_request(request_id):
+    logger.info(f"Processing request {request_id}")
+    return f"Request {request_id} processed"
+
+# Test the function
+process_request("A001")
+process_request("B002")
+process_request("C003")
+```
+
+Output:
+```
+INFO:function_stats:Call #1 to process_request
+INFO:function_stats:Processing request A001
+INFO:function_stats:Call #2 to process_request
+INFO:function_stats:Processing request B002
+INFO:function_stats:Call #3 to process_request
+INFO:function_stats:Processing request C003
+```
+
+### Advanced Usage: Accessing Decorator State
+
+A key advantage of class-based decorators is that you can access their state externally:
+
+```python
+# Access the counter directly
+print(f"Total calls: {'{'}process_request.counter{'}'}")  # Output: Total calls: 3
+
+# We can even reset the counter
+process_request.reset_counter()
+
+# And start counting again
+process_request("D004")
+print(f"Calls after reset: {'{'}process_request.counter{'}'}")  # Output: Calls after reset: 1
+```
+
+This approach is especially useful for:
+
+1. **Rate limiting**: Tracking API calls and enforcing limits
+2. **Caching**: Maintaining a cache of function results based on arguments
+3. **Statistics**: Collecting performance metrics across multiple function calls
+4. **Logging patterns**: Identifying execution patterns and potential issues
+
+## Step 4.7: Parameterized Decorators for Flexible Logging
+
+Sometimes you need decorators that can be configured at decoration time. Parameterized decorators allow you to create more flexible logging behaviors.
+
+### Basic Structure of Parameterized Decorators
+
+A parameterized decorator involves three levels of functions:
+1. An outer function that accepts the decorator parameters
+2. A middle function that accepts the function to decorate
+3. An inner wrapper function that handles the actual function execution
+
+```python
+import logging
+import functools
+
+def conditional_log(enabled=True, log_level=logging.INFO):
+    """A decorator that conditionally logs function calls."""
+    
+    def decorator(func):
+        @functools.wraps(func)
+        def wrapper(*args, **kwargs):
+            if enabled:
+                if args and kwargs:
+                    logger.log(log_level, f"{func.__name__} called with args: {args} and kwargs: {kwargs}")
+                elif args:
+                    logger.log(log_level, f"{func.__name__} called with args: {args}")
+                elif kwargs:
+                    logger.log(log_level, f"{func.__name__} called with kwargs: {kwargs}")
+                else:
+                    logger.log(log_level, f"{func.__name__} called with no arguments")
+            return func(*args, **kwargs)
+        return wrapper
+    return decorator
+
+# Apply with default parameters (enabled=True, log_level=INFO)
+@conditional_log()
+def process_data(data):
+    return f"Processed {data}"
+
+# Apply with custom parameters
+@conditional_log(enabled=False)
+def silent_function(data):
+    return f"Silently processed {data}"
+
+@conditional_log(log_level=logging.DEBUG)
+def debug_function(data):
+    return f"Debug processed {data}"
+```
+
+### Real-World Example: Role-Based Access Control with Logging
+
+Here's a practical example for a web application that combines access control and logging:
+
+```python
+import logging
+import functools
+from datetime import datetime
+
+# Simulated current user context
+user_context = {
+    "user_id": "user_123",
+    "roles": ["user", "editor"],
+    "session_id": "abc-xyz-123"
+}
+
+def require_role(role, log_access_attempts=True):
+    """A decorator that controls access based on user role and logs attempts."""
+    
+    def decorator(func):
+        @functools.wraps(func)
+        def wrapper(*args, **kwargs):
+            # Check if user has the required role
+            has_permission = role in user_context["roles"]
+            
+            # Log the access attempt if configured
+            if log_access_attempts:
+                timestamp = datetime.now().strftime("%Y-%m-%d %H:%M:%S")
+                if has_permission:
+                    logger.info(f"[{'{'}timestamp{'}'}] User {'{'}user_context['user_id']{'}'}  GRANTED access to {'{'}func.__name__{'}'}") 
+                else:
+                    logger.warning(f"[{'{'}timestamp{'}'}] User {'{'}user_context['user_id']{'}'}  DENIED access to {'{'}func.__name__{'}'}  (requires {'{'}role{'}'})")
+            
+            # Either execute the function or raise an exception
+            if has_permission:
+                return func(*args, **kwargs)
+            else:
+                raise PermissionError(f"Access denied: {'{'}func.__name__{'}'}  requires {'{'}role{'}'}  role")
+        
+        return wrapper
+    
+    return decorator
+
+# Regular user access - will succeed
+@require_role("user")
+def view_content(content_id):
+    return f"Viewing content {content_id}"
+
+# Admin access - will fail with our simulated user
+@require_role("admin", log_access_attempts=True)
+def delete_content(content_id):
+    return f"Deleted content {content_id}"
+
+# Test the functions
+try:
+    print(view_content("article-123"))
+    print(delete_content("article-123"))
+except PermissionError as e:
+    print(f"Error: {e}")
+```
+
+Output:
+```
+INFO:security:[2025-05-27 22:47:05] User user_123 GRANTED access to view_content
+Viewing content article-123
+WARNING:security:[2025-05-27 22:47:05] User user_123 DENIED access to delete_content (requires admin)
+Error: Access denied: delete_content requires admin role
+```
+
+This example demonstrates how parameterized decorators can provide flexible, configurable behaviors that enhance your application's logging and security capabilities.
+
+### Benefits of Parameterized Decorators for Logging
+
+1. **Configurable logging levels**: Adjust log verbosity based on environment or function importance
+2. **Conditional logging**: Enable/disable logging based on context
+3. **Custom log formats**: Specify different formats for different functions
+4. **Integration with security**: Combine logging with access control
+5. **Environment awareness**: Different logging behaviors for development, testing, and production
+
+By mastering parameterized decorators, you can create a highly adaptable logging system that meets various requirements across your application.
 logger.setLevel(logging.DEBUG) # Set the logger to debug level for both debug and error messages
 
 # Create a console handler to output logs to the console
@@ -195,7 +547,7 @@ def divide(a, b):
 try:
     divide(4, 0)
 except ZeroDivisionError as e:
-    logger.error(f"Caught an exception: {e}")
+    logger.error(f"Caught an exception: {'{'} e {'}'}")
 
 
 ```
@@ -203,8 +555,8 @@ except ZeroDivisionError as e:
 ```bash
 2025-05-26 06:24:51,419 [ERROR] my_module: An error occurred in divide: division by zero
 2025-05-26 06:24:51,419 - my_module - ERROR - advance_logging - advance_logging.py:18 - An error occurred in divide: division by zero
-2025-05-26 06:24:51,419 [ERROR] my_module: Caught an exception: division by zero
-2025-05-26 06:24:51,419 - my_module - ERROR - advance_logging - advance_logging.py:37 - Caught an exception: division by zero
+2025-05-26 06:24:51,419 [ERROR] my_module: Caught an exception: {'{'} e {'}'} division by zero
+2025-05-26 06:24:51,419 - my_module - ERROR - advance_logging - advance_logging.py:37 - Caught an exception: {'{'} e {'}'} division by zero
 ```
 
 This advanced decorator logs both function calls with their arguments (at DEBUG level) and any exceptions (at ERROR level), providing more context for debugging.
@@ -502,10 +854,10 @@ logger.setLevel(logging.INFO)  # Only capture significant events
 
 ```python
 # WRONG - exposing sensitive information
-logger.info(f"User authenticated with password: {password}")  
+logger.info(f"User authenticated with password: {'{'} password {'}'}")  
 
 # RIGHT - logging the event without exposing secrets
-logger.info(f"User {username} authenticated successfully")
+logger.info(f"User {'{'} username {'}'} authenticated successfully")
 ```
 
 ### Step 9.4: Implement log rotation
@@ -551,7 +903,7 @@ logger.addHandler(handler)
 def log_route(f):
     @functools.wraps(f)
     def decorated_function(*args, **kwargs):
-        logger.info(f"Route {request.path} called")
+        logger.info(f"Route {'{'} request.path {'}'} called")
         return f(*args, **kwargs)
     return decorated_function
 
@@ -596,7 +948,7 @@ class RequestLoggingMiddleware:
         request.request_id = request_id
         
         # Log the request
-        logger.info(f"Request {request.method} {request.path}", 
+        logger.info(f"Request {'{'} request.method {'}'} {'{'} request.path {'}'}", 
                    extra={'request_id': request_id})
         
         # Process the request
@@ -606,7 +958,7 @@ class RequestLoggingMiddleware:
         response['X-Request-ID'] = request_id
         
         # Log the response
-        logger.info(f"Response status: {response.status_code}",
+        logger.info(f"Response status: {'{'} response.status_code {'}'}",
                    extra={'request_id': request_id})
         
         return response
@@ -831,7 +1183,7 @@ def k8s_log(logger=None):
             start_time = time.time()
             
             # Log the start of the operation
-            logger.info(f"Starting operation {func.__name__}", 
+            logger.info(f"Starting operation {'{'}func.__name__{'}'}", 
                        extra={"operation_id": operation_id})
             
             try:
@@ -840,13 +1192,13 @@ def k8s_log(logger=None):
                 
                 # Log successful completion
                 execution_time = time.time() - start_time
-                logger.info(f"Operation {func.__name__} completed successfully",
+                logger.info(f"Operation {'{'}func.__name__{'}'} completed successfully",
                            extra={"operation_id": operation_id})
                 return result
             except Exception as e:
                 # Log the failure
                 execution_time = time.time() - start_time
-                logger.error(f"Operation {func.__name__} failed: {str(e)}",
+                logger.error(f"Operation {'{'}func.__name__{'}'} failed: {'{'} str(e) {'}'}",
                             extra={"operation_id": operation_id},
                             exc_info=True)
                 raise
@@ -955,7 +1307,7 @@ def trace_request(logger=None):
             
             # Log with trace ID
             with tracer.start_as_current_span(func.__name__) as span:
-                logger.info(f"Executing {func.__name__}", 
+                logger.info(f"Executing {'{'}func.__name__{'}'}", 
                            extra={"trace_id": trace_id})
                 
                 try:
@@ -965,7 +1317,7 @@ def trace_request(logger=None):
                     return result
                 except Exception as e:
                     span.set_status(trace.StatusCode.ERROR)
-                    logger.error(f"Error in {func.__name__}: {str(e)}", 
+                    logger.error(f"Error in {'{'}func.__name__{'}'}: {'{'} str(e) {'}'}", 
                                extra={"trace_id": trace_id}, 
                                exc_info=True)
                     raise
@@ -1007,13 +1359,13 @@ Create a ConfigMap for Fluentd to collect and forward logs:
 apiVersion: v1
 kind: ConfigMap
 metadata:
-  name: fluentd-config
+  name: fluent-bit-config
 data:
   fluent.conf: |
     <source>
       @type tail
       path /var/log/containers/*.log
-      pos_file /var/log/fluentd-containers.log.pos
+      pos_file /var/log/fluent-bit-containers.log.pos
       tag kubernetes.*
       read_from_head true
       <parse>
@@ -1037,7 +1389,7 @@ data:
       logstash_prefix k8s
       <buffer>
         @type file
-        path /var/log/fluentd-buffers/kubernetes.system.buffer
+        path /var/log/fluent-bit-buffers/kubernetes.system.buffer
         flush_mode interval
         retry_type exponential_backoff
         flush_thread_count 2
@@ -1201,6 +1553,7 @@ Create a `docker-compose.yml` file with the following content:
 version: '3.8'
 
 services:
+  # Elasticsearch
   elasticsearch:
     image: docker.elastic.co/elasticsearch/elasticsearch:7.14.0
     container_name: elasticsearch
@@ -1223,6 +1576,7 @@ services:
       timeout: 10s
       retries: 5
 
+  # Logstash
   logstash:
     image: docker.elastic.co/logstash/logstash:7.14.0
     container_name: logstash
@@ -1237,6 +1591,7 @@ services:
     depends_on:
       - elasticsearch
 
+  # Kibana
   kibana:
     image: docker.elastic.co/kibana/kibana:7.14.0
     container_name: kibana
@@ -1256,49 +1611,7 @@ volumes:
     driver: local
 ```
 
-### Step 15.2: Why Not Use Relational Databases for Logging?
-
-While relational databases like SQL Server, MySQL or PostgreSQL might seem like a convenient choice for logging (especially if you're already using them in your application), they're actually a poor fit for log management in production environments. Here's why specialized solutions like ELK Stack, ClickHouse, or SigNoz are significantly better choices:
-
-#### Performance Limitations of Relational Databases for Logging
-
-1. **Write Throughput**: Logs generate massive amounts of data at high velocity. A busy application can produce millions of log events daily. Relational databases with their ACID properties prioritize consistency over write performance, creating a bottleneck.
-
-2. **Schema Constraints**: Relational databases require predefined schemas. Log data often has variable structure, especially when coming from multiple services. Elasticsearch and ClickHouse support schema-on-read, making them more flexible for diverse log formats.
-
-3. **Query Performance**: SQL queries on large log tables become progressively slower. Specialized solutions like Elasticsearch use inverted indices optimized for log-based search patterns.
-
-4. **Scaling Issues**: Horizontal scaling (sharding) is complex with traditional RDBMSs. Log volumes grow continuously, requiring seamless scaling capabilities that solutions like Elasticsearch provide natively.
-
-#### Storage and Operational Concerns
-
-1. **Cost Efficiency**: Storing billions of log records in a relational database requires expensive infrastructure. Solutions like ClickHouse can achieve 10-100x better compression ratios for log data.
-
-2. **Data Rotation**: Log data typically has a lifecycle (e.g., keeping 30 days of logs). Specialized solutions provide built-in features for index rotation and data archiving that are cumbersome to implement in relational databases.
-
-3. **Operational Overhead**: Running a large-scale RDBMS requires significant operational expertise. Log-optimized solutions are designed specifically for high-volume append-only workloads.
-
-#### Specialized Features for Log Analysis
-
-1. **Full-text Search**: Solutions like Elasticsearch provide powerful full-text search capabilities essential for log analysis.
-
-2. **Time-Series Optimization**: Logs are time-series data. ClickHouse and Elasticsearch are optimized for time-based queries common in log analysis.
-
-3. **Visualization & Analysis**: The "K" in ELK (Kibana) and SigNoz's UI provide built-in visualization tools designed specifically for log data.
-
-4. **Structured Data Support**: Modern logging systems output structured JSON logs. Document-oriented databases like Elasticsearch handle this naturally.
-
-#### When Relational Databases Might Be Acceptable (Limited Cases)
-
-Relational databases might be acceptable only for:
-- Very small applications with minimal log volume
-- Temporary development environments
-- Cases where specific compliance requirements mandate ACID properties
-- Applications where logs need to be joined with relational application data
-
-Even in these cases, consider directing only a filtered subset of critical logs to a relational database while sending complete logs to a specialized solution.
-
-### Step 15.3: Start the ELK Stack
+### Step 15.2: Start the ELK Stack
 
 Start the ELK stack with Docker Compose:
 
@@ -1306,7 +1619,7 @@ Start the ELK stack with Docker Compose:
 docker-compose up -d
 ```
 
-### Step 15.4: Configure Python logging to send logs to ELK
+### Step 15.3: Configure Python logging to send logs to ELK
 
 Create a new file `elk_logging.py` to configure Python logging for ELK:
 
@@ -1392,7 +1705,7 @@ def setup_elk_logging(service_name, logstash_host='localhost', logstash_port=500
     return root_logger
 ```
 
-### Step 15.5: Use the ELK logging in your application
+### Step 15.4: Use the ELK logging in your application
 
 Update your application to use ELK logging:
 
@@ -1416,17 +1729,17 @@ logger = setup_elk_logging(
 def log_function(func):
     @functools.wraps(func)
     def wrapper(*args, **kwargs):
-        logger.info(f"Calling {func.__name__}", extra={
+        logger.info(f"Calling {'{'}func.__name__{'}'}", extra={
             "function": func.__name__,
             "args": str(args),
             "kwargs": str(kwargs)
         })
         try:
             result = func(*args, **kwargs)
-            logger.info(f"{func.__name__} completed successfully")
+            logger.info(f"{'{'}func.__name__{'}'} completed successfully")
             return result
         except Exception as e:
-            logger.error(f"{func.__name__} failed: {str(e)}", exc_info=True)
+            logger.error(f"{'{'}func.__name__{'}'} failed: {'{'} str(e) {'}'}", exc_info=True)
             raise
     return wrapper
 
@@ -1456,7 +1769,7 @@ if __name__ == "__main__":
             print(f"Caught error: {e}")
 ```
 
-### Step 15.6: Build and run with Docker
+### Step 15.5: Build and run with Docker
 
 Create a Dockerfile for your application:
 
@@ -1505,7 +1818,7 @@ networks:
     external: true
 ```
 
-### Step 15.7: Accessing the logs in Kibana
+### Step 15.6: Accessing the logs in Kibana
 
 1. Build and start your application:
 
