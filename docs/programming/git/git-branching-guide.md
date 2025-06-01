@@ -13,11 +13,20 @@ Git branching is a powerful feature that allows you to work on different version
 A branch in Git is simply a lightweight movable pointer to a commit. The default branch in Git is called `main` (or `master` in older repositories). When you create a new branch, Git creates a new pointer to the same commit you're currently on.
 
 ```bash
-# List all branches
+# List all branches (local only)
 git branch
+
+# List all branches with additional details (last commit)
+git branch -v
+
+# List all remote branches
+git branch -r
 
 # List all branches including remote branches
 git branch -a
+
+# View tracking relationships between local and remote branches
+git branch -vv
 ```
 
 ### Real-World Example: Feature Branch in [jirax](https://github.com/ivishalgandhi/jirax)
@@ -78,7 +87,15 @@ git checkout main
 
 ## Working with Remote Branches
 
-Remote branches are references to the state of branches on your remote repositories.
+Remote branches are references to the state of branches on your remote repositories. Understanding the relationship between local and remote branches is crucial for effective collaboration.
+
+### Understanding Remote vs. Local Branches
+
+1. **Local branches** exist only on your machine
+2. **Remote branches** exist on the remote repository (like GitHub, GitLab)
+3. **Remote-tracking branches** are local references that represent the state of remote branches
+
+When you clone a repository, Git creates a local branch (typically `main`) and a remote-tracking branch (`origin/main`). These branches don't automatically stay in sync - you need to explicitly communicate with the remote to update them.
 
 ### Fetching Remote Branches
 
@@ -89,6 +106,97 @@ git fetch origin
 # Fetch a specific branch
 git fetch origin feature-branch
 ```
+
+### Git Fetch vs. Git Pull
+
+The difference between `git fetch` and `git pull` is one of the most important concepts to understand in Git.
+
+#### Git Fetch
+
+```bash
+git fetch [remote] [branch]
+```
+
+What `git fetch` does:
+
+1. Downloads new data from the remote repository
+2. Updates your remote-tracking branches
+3. **Does NOT** modify your working directory or local branches
+4. **Does NOT** automatically merge or rebase changes into your local branches
+
+Example workflow:
+```bash
+# Download updates from remote
+git fetch origin
+
+# See what changes exist between your local main and origin/main
+git log main..origin/main
+
+# Decide what to do with those changes
+```
+
+#### Can You Undo a Git Fetch?
+
+Unlike many Git operations, `git fetch` doesn't change your working directory or local branches, so there's technically nothing to "undo" in your actual code. However, you can reset the state of your remote-tracking branches if needed:
+
+```bash
+# First, find the previous state of the remote-tracking branch in the reflog
+git reflog show origin/main
+
+# Example output:
+# 5a3f8bc (origin/main@{0}) fetch: fast-forward
+# 72baf52 (origin/main@{1}) fetch: fast-forward
+
+# Reset the remote-tracking branch to its previous state
+git update-ref refs/remotes/origin/main 72baf52
+```
+
+In practice, it's rarely necessary to undo a fetch because:
+1. It doesn't modify your working directory or local branches
+2. You can simply choose not to merge or rebase the fetched changes
+3. You can always fetch again to get the latest state
+
+If you fetched changes you don't want to integrate, just don't run `git merge` or `git pull`.
+
+#### Git Pull
+
+```bash
+git pull [remote] [branch]
+```
+
+What `git pull` does:
+
+1. Runs `git fetch` to download data from the remote repository
+2. **Immediately** integrates those changes into your current local branch
+3. By default, it performs a merge, but can be configured to rebase instead
+
+Behind the scenes, `git pull` is equivalent to:
+```bash
+git fetch
+git merge origin/current-branch  # or git rebase if configured
+```
+
+This means if you need to undo a `git pull`, you're actually undoing the merge or rebase that happened after the fetch:
+
+```bash
+# Undo a pull that was a merge (the default)
+git reset --hard ORIG_HEAD
+
+# Undo a pull that was a rebase
+# First find the previous state in reflog
+git reflog
+# Then reset to the commit before the rebase
+git reset --hard HEAD@{1}  # Adjust the number as needed
+```
+
+#### Choosing Between Fetch and Pull
+
+| Use `git fetch` when you want to | Use `git pull` when you want to |
+|----------------------------------|--------------------------------|
+| See changes before integrating them | Quickly update your branch with remote changes |
+| Review commits before merging | You're confident there are no conflicts |
+| Maintain more control over the integration process | Simplify your workflow |
+| Update multiple branches before deciding what to do | You only need to update your current branch |
 
 ### Checking Out Remote Branches
 
@@ -226,15 +334,42 @@ git branch -m new-name
 git branch -m old-name new-name
 ```
 
+## Checking Branch Status
+
+### Viewing Differences Between Branches
+
+```bash
+# Show what commits are in branch-a that aren't in branch-b
+git log branch-b..branch-a
+
+# Show difference between local branch and its remote tracking branch
+git log origin/main..main  # Shows local commits not yet pushed
+
+# View changes that would be pulled from remote
+git log main..origin/main  # Shows remote commits not in local branch
+```
+
+### Checking If You Need to Push or Pull
+
+```bash
+# See if your branch is ahead, behind, or both
+git status -sb
+
+# More detailed view of what commits differ
+git fetch
+git log --oneline --graph --all -10
+```
+
 ## Conclusion
 
 Effective branch management is essential for a smooth Git workflow, especially when working across multiple devices. By following these practices, you can ensure your work remains consistent and synchronized regardless of which computer you're using.
 
 Remember the key steps:
-1. Fetch and pull before starting work
+1. Fetch and pull before starting work (understanding the difference between the two)
 2. Push changes regularly
 3. Set up proper branch tracking
 4. Use stash or WIP commits when switching devices
 5. Regularly clean up unused branches
+6. Use appropriate branch viewing commands to understand your repository state
 
 These habits will help you maintain a clean and efficient Git workflow across all your development environments.
