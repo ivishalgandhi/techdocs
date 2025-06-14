@@ -1,3 +1,10 @@
+---
+id: mkdocs-material-customization
+title: Customizing MkDocs Material Theme
+sidebar_label: MkDocs Customization
+sidebar_position: 4
+---
+
 # Customizing MkDocs Material Theme
 
 This tutorial explains how to customize your MkDocs Material theme to implement full-width layout, integrate FontAwesome icons, and apply GitLab's exact font styling and branding.

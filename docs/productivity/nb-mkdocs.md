@@ -1,3 +1,10 @@
+---
+id: nb-mkdocs
+title: Setting up MkDocs with NB Notes
+sidebar_label: NB with MkDocs
+sidebar_position: 2
+---
+
 # Setting up MkDocs with NB Notes
 
 This tutorial shows how to install MkDocs using `uv` to browse your NB notes through a web interface with proper tree navigation.
