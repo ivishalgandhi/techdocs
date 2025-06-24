@@ -403,6 +403,130 @@ extra_javascript:
   - javascripts/extra.js
 ```
 
+## GitLab Repository Integration
+
+Integrating your MkDocs site with GitLab allows users to view repository information and edit documents directly from the documentation site. This creates a seamless workflow between documentation and code.
+
+### Adding GitLab Repository Link
+
+1. First, add your GitLab repository URL to the `mkdocs.yml` configuration:
+
+```yaml
+repo_url: https://gitlab.com/your-username/your-repository
+repo_name: your-username/your-repository
+```
+
+2. Customize the repository icon to use the GitLab logo:
+
+```yaml
+theme:
+  name: material
+  icon:
+    repo: fontawesome/brands/gitlab
+```
+
+### Enable Edit Button Integration
+
+To enable the "Edit this page" button that links directly to the GitLab editor:
+
+1. Configure the edit URI in your `mkdocs.yml` file:
+
+```yaml
+edit_uri: edit/main/docs/
+```
+
+Note: If your default branch is not `main`, replace it with your branch name (e.g., `master`). Also ensure the path to your documentation directory is correct.
+
+2. Enable the edit button feature:
+
+```yaml
+theme:
+  name: material
+  features:
+    - content.action.edit
+```
+
+3. Optionally customize the edit icon:
+
+```yaml
+theme:
+  icon:
+    edit: material/pencil
+```
+
+### Document Revision Information
+
+To display when documents were last updated and who contributed to them:
+
+1. Install the git revision date plugin:
+
+```bash
+pip install mkdocs-git-revision-date-localized-plugin
+```
+
+2. Configure the plugin in your `mkdocs.yml`:
+
+```yaml
+plugins:
+  - git-revision-date-localized:
+      enable_creation_date: true
+      type: date
+```
+
+3. For showing contributors, install the git committers plugin:
+
+```bash
+pip install mkdocs-git-committers-plugin-2
+```
+
+4. Add to your configuration:
+
+```yaml
+plugins:
+  - git-committers:
+      repository: your-username/your-repository
+      branch: main
+```
+
+### Complete Example with GitLab Integration
+
+Here's a comprehensive example for GitLab integration:
+
+```yaml
+site_name: Your Documentation
+site_url: https://your-documentation-url.com/
+docs_dir: docs
+
+# GitLab repository configuration
+repo_url: https://gitlab.com/your-username/your-repository
+repo_name: your-username/your-repository
+edit_uri: edit/main/docs/
+
+theme:
+  name: material
+  custom_dir: overrides
+  features:
+    - navigation.instant
+    - navigation.tracking
+    - content.action.edit  # Enable edit button
+  icon:
+    repo: fontawesome/brands/gitlab
+    edit: material/pencil
+
+plugins:
+  - search
+  - git-revision-date-localized:
+      enable_creation_date: true
+      type: date
+  - git-committers:
+      repository: your-username/your-repository
+      branch: main
+```
+
+This configuration creates a fully integrated documentation site with GitLab, showing repository information, enabling direct editing of pages, and displaying document history.
+
+> **Further Reading:** For an in-depth tutorial on building and deploying a centralized documentation site using MkDocs and GitLab, see [Documentation as Code: How to Build & Deploy a Centralised Documentation Site using MkDocs & GitLab](https://medium.com/@harryalexdunn/documentation-as-code-how-to-build-deploy-a-centralised-documentation-site-using-mkdocs-gitlab-2dc86e071bd0).
+
 ## Troubleshooting
 
 ### CSS Not Loading
@@ -425,3 +549,9 @@ If your custom CSS is not loading:
 1. Make sure the theme override is correctly set up
 2. Check if CSS specificity is sufficient (add `!important` if needed)
 3. Restart the MkDocs server to ensure changes are applied
+
+### GitLab Edit Links Not Working
+
+1. Verify your `edit_uri` path is correct and points to the right branch
+2. Ensure your repository permissions allow editing
+3. Check that the document path in your repository matches the documentation structure
