@@ -163,13 +163,67 @@ with concurrent.futures.ThreadPoolExecutor() as executor:
 
 In sequential execution, each function call must complete before the next one begins, resulting in the total execution time being the sum of all individual execution times.
 
-![Sequential Execution](https://i.imgur.com/V6V1Dq7.png)
+```mermaid
+sequenceDiagram
+    participant Main
+    participant Function1
+    participant Function2
+    participant Function3
+    
+    Main->>Function1: Call function
+    activate Function1
+    Note over Function1: Processing (1 second)
+    Function1-->>Main: Return result
+    deactivate Function1
+    
+    Main->>Function2: Call function
+    activate Function2
+    Note over Function2: Processing (1 second)
+    Function2-->>Main: Return result
+    deactivate Function2
+    
+    Main->>Function3: Call function
+    activate Function3
+    Note over Function3: Processing (1 second)
+    Function3-->>Main: Return result
+    deactivate Function3
+    
+    Note over Main,Function3: Total execution time: 3 seconds
+```
 
 ### Concurrent Execution
 
 With concurrent execution using threads, multiple functions can run simultaneously. For I/O-bound tasks, this significantly reduces the total execution time.
 
-![Concurrent Execution](https://i.imgur.com/1ULLNK6.png)
+```mermaid
+sequenceDiagram
+    participant Main
+    participant Thread1
+    participant Thread2
+    participant Thread3
+    
+    Main->>Thread1: Start thread
+    activate Thread1
+    Main->>Thread2: Start thread
+    activate Thread2
+    Main->>Thread3: Start thread
+    activate Thread3
+    
+    Note over Thread1: Processing (1 second)
+    Note over Thread2: Processing (1 second)
+    Note over Thread3: Processing (1 second)
+    
+    Thread1-->>Main: Thread complete
+    deactivate Thread1
+    Thread2-->>Main: Thread complete
+    deactivate Thread2
+    Thread3-->>Main: Thread complete
+    deactivate Thread3
+    
+    Main->>Main: Join all threads
+    
+    Note over Main,Thread3: Total execution time: ~1 second
+```
 
 ## Timing Thread Execution
 
@@ -321,14 +375,6 @@ Python's GIL is a mutex that protects access to Python objects, preventing multi
 4. **Over-threading** - Too many threads can cause overhead
 5. **Using threading for CPU-bound tasks** - Consider multiprocessing instead
 6. **Thread safety** - Be careful with non-thread-safe libraries
-
-## Further Resources
-
-- [Python Threading Documentation](https://docs.python.org/3/library/threading.html)
-- [concurrent.futures Documentation](https://docs.python.org/3/library/concurrent.futures.html)
-- [Real Python's Threading Guide](https://realpython.com/intro-to-python-threading/)
-- [Python Multiprocessing vs Threading](https://realpython.com/python-concurrency/)
-- [Python Asyncio Tutorial](https://realpython.com/async-io-python/)
 
 ## Multiprocessing in Python
 
@@ -549,6 +595,16 @@ graph TD
    - Ideal for building high-performance network servers
    - More readable and maintainable than callback-based approaches
    - Not suitable for CPU-bound tasks without offloading
+
+## Further Resources
+
+- [Python Threading Documentation](https://docs.python.org/3/library/threading.html)
+- [concurrent.futures Documentation](https://docs.python.org/3/library/concurrent.futures.html)
+- [Real Python's Threading Guide](https://realpython.com/intro-to-python-threading/)
+- [Python Multiprocessing vs Threading](https://realpython.com/python-concurrency/)
+- [Python Asyncio Tutorial](https://realpython.com/async-io-python/)
+- [Python Cookbook: Concurrency](https://www.oreilly.com/library/view/python-cookbook-3rd/9781449357337/)
+- [Fluent Python: Concurrency Chapter](https://www.oreilly.com/library/view/fluent-python/9781491946237/)
 
 ## Next Steps
 
