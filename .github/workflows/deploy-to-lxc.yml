@@ -1,0 +1,71 @@
+name: Build and Deploy to LXC
+
+on:
+  push:
+    branches: [main]
+  workflow_dispatch:
+
+jobs:
+  build-and-deploy:
+    runs-on: ubuntu-latest
+    
+    steps:
+      - name: Checkout code
+        uses: actions/checkout@v4
+      
+      - name: Setup Node.js
+        uses: actions/setup-node@v4
+        with:
+          node-version: '20'
+          cache: 'npm'
+      
+      - name: Install dependencies
+        run: npm ci
+      
+      - name: Build Docusaurus site
+        run: npm run build
+      
+      - name: Create tarball
+        run: tar -czf build.tar.gz -C build .
+      
+      - name: Upload build artifact (backup)
+        uses: actions/upload-artifact@v4
+        with:
+          name: docusaurus-build
+          path: build.tar.gz
+          retention-days: 7
+      
+      - name: Deploy to LXC via SSH
+        env:
+          SSH_PRIVATE_KEY: ${{ secrets.SSH_PRIVATE_KEY }}
+          SSH_HOST: ${{ secrets.SSH_HOST }}
+          SSH_USER: ${{ secrets.SSH_USER }}
+        run: |
+          # Setup SSH
+          mkdir -p ~/.ssh
+          echo "$SSH_PRIVATE_KEY" > ~/.ssh/deploy_key
+          chmod 600 ~/.ssh/deploy_key
+          
+          # Add host to known_hosts
+          ssh-keyscan -H $SSH_HOST >> ~/.ssh/known_hosts 2>/dev/null
+          
+          # Copy tarball to LXC
+          scp -i ~/.ssh/deploy_key -o StrictHostKeyChecking=no build.tar.gz ${SSH_USER}@${SSH_HOST}:/tmp/
+          
+          # Deploy on LXC
+          ssh -i ~/.ssh/deploy_key -o StrictHostKeyChecking=no ${SSH_USER}@${SSH_HOST} << 'ENDSSH'
+            # Create web root if it doesn't exist
+            mkdir -p /var/www/docs
+            
+            # Extract files
+            cd /var/www/docs
+            tar -xzf /tmp/build.tar.gz
+            
+            # Set permissions
+            chown -R www-data:www-data /var/www/docs 2>/dev/null || chown -R root:root /var/www/docs
+            
+            # Cleanup
+            rm /tmp/build.tar.gz
+            
+            echo "✅ Deployment completed at $(date)"
+          ENDSSH
