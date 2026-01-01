@@ -1,8 +1,8 @@
 ---
-id: taskwarrior
-title: Taskwarrior - CLI Task Management
-sidebar_label: Taskwarrior
-sidebar_position: 2
+id: zk-cli
+title: ZK CLI - Note Management
+sidebar_label: ZK CLI
+sidebar_position: 3
 ---
 
 ##  Introduce Daily Journal 
