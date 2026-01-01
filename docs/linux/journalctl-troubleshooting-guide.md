@@ -507,6 +507,57 @@ journalctl -u cron.service -f
 journalctl --since today | grep "cron\[" | grep -i "error\|fail"
 ```
 
+### Scenario 11: Tailscale/VPN Daemon Won't Start in LXC
+
+**Problem:** Tailscale (or other VPN) fails to start in LXC container with "failed to connect to local tailscaled" error.
+
+```bash
+# Check if tailscaled attempted to start
+journalctl -u tailscaled.service -n 50
+
+# Look for TUN/TAP device errors
+journalctl -u tailscaled.service | grep -i "tun\|tap\|device\|permission denied"
+
+# Check kernel messages for device availability
+journalctl -k | grep -i "tun"
+
+# Watch tailscaled startup in real-time
+journalctl -u tailscaled.service -f
+# In another terminal: sudo systemctl start tailscaled
+```
+
+**Common findings:**
+- TUN device not available (`/dev/net/tun` missing)
+- Permission denied on TUN device
+- LXC container lacking device access
+
+**Verification after fix:**
+```bash
+# Verify TUN device exists
+ls -la /dev/net/tun
+
+# Check if tailscaled is now running
+systemctl status tailscaled
+
+# View startup logs
+journalctl -u tailscaled.service --since "1 minute ago"
+
+# Confirm socket creation
+ls -la /var/run/tailscale/tailscaled.sock
+```
+
+**LXC Fix (on host):**
+Edit `/etc/pve/lxc/CONTAINER_ID.conf` and add:
+```ini
+lxc.cgroup2.devices.allow: c 10:200 rwm
+lxc.mount.entry: /dev/net dev/net none bind,create=dir
+```
+
+Then restart container and monitor:
+```bash
+journalctl -u tailscaled.service -f
+```
+
 ## Common Pitfalls and Tips
 
 :::warning Common Issues
