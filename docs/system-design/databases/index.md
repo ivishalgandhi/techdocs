@@ -11,6 +11,7 @@ This section covers database selection, scaling strategies, and optimization tec
 ## Topics Covered
 
 - **[SQL vs NoSQL](./sql-vs-nosql)** - Choosing the right database paradigm
+- **[Data Modeling](./data-modeling)** - Data modeling abstraction and paradigms
 - **[Scaling](./scaling)** - Sharding, replication, and horizontal scaling
 - **[Optimization](./optimization)** - Indexing, query optimization, and performance tuning
 

@@ -235,3 +235,28 @@ Maintainability determines the long-term velocity and adaptability of a developm
 ---
 
 **Key Takeaway**: Building data-intensive applications requires focusing on reliability as the foundation, scalability for growth, and maintainability for long-term team velocity, with every architectural decision being a deliberate trade-off tailored to your specific use case.
+
+## Quick Summary
+
+**One-Sentence Summary**: A data-intensive application uses many components like caches and databases, and its design must prioritize reliability, scalability, and maintainability to serve millions of users.
+
+## Main Points
+
+1. **Data-intensive applications** handle large, rapidly changing data volumes, like major social media sites.
+2. **Typical architecture** includes users, load balancers, application servers, caches, and primary databases.
+3. **Application code** acts as the connective glue between caches, databases, indexes, and message queues.
+4. **Caches** enable fast read operations, while **indexes** allow quick searching through large datasets.
+5. **Asynchronous processing** for non-instant tasks uses message queues like Kafka.
+6. **Reliability** means tolerating faults from hardware, software, or human error while ensuring security.
+7. **Scalability** involves handling increased traffic through load description and capacity planning.
+8. **Maintainable systems** are operable, simple to understand, and easy to evolve over time.
+9. **Scaling techniques** include scaling up with powerful machines or scaling out horizontally.
+10. **Final system design** must be custom-fit to the specific use case and requirements.
+
+## Key Takeaways
+
+1. **Identify a data-intensive use case** by high data volume, complexity, and speed of change.
+2. **Application logic orchestrates data flow** between critical components like caches and databases.
+3. **Design systems with core pillars**: reliability for faults, scalability for growth, and maintainability.
+4. **Use percentiles like the 90th or 95th** to measure and set performance objectives for users.
+5. **Regularly refactor code and reduce technical debt** to keep systems evolvable and simple.
