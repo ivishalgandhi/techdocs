@@ -19,7 +19,7 @@ This section provides complete system design examples that demonstrate the appli
 
 - **Non-functional**:
   - High availability (99.9% uptime)
-  - Low latency (<100ms redirection)
+  - Low latency (&lt;100ms redirection)
   - Handle 100M URLs, 1B clicks/month
   - Global distribution
 
@@ -179,7 +179,7 @@ class AnalyticsService:
   - File sharing
 
 - **Non-functional**:
-  - Low latency (<50ms message delivery)
+  - Low latency (&lt;50ms message delivery)
   - High availability (99.99% uptime)
   - Support 10M concurrent users
   - Message persistence
