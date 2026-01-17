@@ -16,7 +16,7 @@ There are no specific linting or testing commands in `package.json`.
 - **Imports:** Use ES6 `import/export` syntax. Organize imports with React imports first, then other libraries, and finally local components.
 - **Components:** Components should be functional and use React Hooks. Class components are not allowed.
 - **Naming Conventions:**
-  - `camelCase` for variables and functions.
+  - `camelCase` for variables and functions.¬
   - `PascalCase` for components and files.
   - `kebab-case` for CSS classes.
 - **Styling:** This project uses CSS Modules for styling. All styles should be defined in `.module.css` files.
