@@ -40,3 +40,6 @@ lerna-debug.log*
 .dockerignore
 .docker-data
 docker-compose.override.yml
+
+# Scratch folder
+/scratch
