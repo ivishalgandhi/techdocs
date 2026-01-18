@@ -56,7 +56,7 @@ For each mission gather 1-3 SMART goals:
 - Measurable metric  
 - Achievable scope  
 - Relevant to the mission  
-- Time-bound ("by <date>")
+- Time-bound ("by \`<date>\`")
 
 ### 5️⃣ Challenges  
 - "List honest internal or external obstacles that could block you."
