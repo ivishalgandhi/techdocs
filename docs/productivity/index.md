@@ -13,6 +13,8 @@ This section contains documentation for various productivity tools that can help
 
 Command-line tools offer powerful productivity enhancements for developers and power users:
 
+- [Managing Passwords with Pass](pass.md) - The standard Unix password manager with GPG encryption and Git sync
+  - [Pass Cheat Sheet](pass-cheatsheet.mdx) - Quick reference guide for Pass commands
 - [Taskwarrior](taskwarrior.md) - A powerful command-line task management system
 - [NB with MkDocs](nb-mkdocs.md) - Command-line note-taking with web interface integration
 
