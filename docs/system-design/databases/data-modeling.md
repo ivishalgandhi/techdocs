@@ -71,6 +71,8 @@ graph TB
 ## Model Comparison
 
 ### Query Complexity Trade-offs
+
+
 ```mermaid
 graph LR
     A[Data Model Choice] --> B[Query Complexity]
